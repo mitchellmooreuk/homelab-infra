@@ -1,6 +1,17 @@
+Disclaimer: AI was used to generate this file.
+
 # Homelab Infrastructure
 
-Terraform configuration for provisioning a homelab infrastructure with Azure resource management and Proxmox virtual machine lifecycle management.
+The goal for this repository is to put most of my homelab configuration into Terraform and Ansible to make it easy to rebuild should I ever have to. This repo should never expose the names of any Azure resources, nor should it ever expose any secrets or sensitive values. Any resources should be locked down as much as possible (within reason), whilst ensuring cost efficiency remains a priority. This repository is not representitive of an enterprise environment, nor is it how I would configure an enterprise environment; but as I don't have enterprise money I have to get creative to balance both security and cost simultaneously 😅
+
+## Roadmap
+- Provision remote state and an azure key vault to retrieve secrets at runtime [✅]
+- Create a terraform modules repository to enable remote module storage including versioning of modules [✅]
+- Get all virtual machines into Terraform [✅]
+- Make this deployable via GitHub actions using CI/CD pipelines []
+- Provision scripts to backup configuration for switches, firewalls, access points etc []
+- Provision a VM with a cron job that goes away and grabs those backups every x amount of time, saves them to my NAS and remote storage of some kind []
+- Get a personal website up and running in Azure with CI/CD pipelines for this []
 
 ## Overview
 
@@ -13,12 +24,10 @@ This repository provisions a homelab infrastructure using:
 ## Architecture
 
 - `main.tf` defines providers, Azure resource group, management lock, and a role assignment.
-- `app.tf` instantiates reusable modules:
-  - `azure-keyvault` module for Key Vault management.
-  - `proxmox-vm` module for each Proxmox virtual machine.
+- `app.tf` instantiates reusable modules
 - `variables.tf` exposes configuration values for Azure, Proxmox, tagging, and VM definitions.
 - `homelab.tfvars` contains the default deployment settings for this homelab.
-- `terraform-plan.sh` fetches secrets from Azure Key Vault and runs `terraform init` + `terraform plan`.
+- `terraform-plan.sh` fetches secrets from Azure Key Vault and runs `terraform init` + `terraform plan`. Handles IP lifecycle management to both the storage account and key vault.
 - `imports.tf` includes sample import statements for bringing existing Proxmox VMs under Terraform management.
 
 ## Prerequisites
@@ -70,7 +79,7 @@ The script reads backend configuration values from Azure Key Vault secrets:
 ## Notes
 
 - `azurerm_management_lock.homelab` protects the Azure resource group from accidental deletion.
-- The `key_vault` role assignment applies the `Key Vault Secrets Officer` role to a fixed principal ID.
+- The `key_vault` role assignment applies the `Key Vault Secrets Officer` role to a fixed principal ID (Entra ID Security Group).
 - `imports.tf` contains sample import blocks for existing Proxmox VMs. Update IDs and node names before using.
 
 ## Customization
