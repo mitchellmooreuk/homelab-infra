@@ -1,0 +1,18 @@
+# .gitignore
+# Terraform local state and binaries
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+tfplan
+
+# Credentials & Private Keys
+*.pem
+*.key
+*.pub
+generated_resources.tf
+
+# OS files
+.DS_Store
+Thumbs.db
+.vscode
