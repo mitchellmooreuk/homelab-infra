@@ -28,7 +28,6 @@ This repository provisions a homelab infrastructure using:
 - `variables.tf` exposes configuration values for Azure, Proxmox, tagging, and VM definitions.
 - `homelab.tfvars` contains the default deployment settings for this homelab.
 - `terraform-plan.sh` fetches secrets from Azure Key Vault and runs `terraform init` + `terraform plan`. Handles IP lifecycle management to both the storage account and key vault.
-- `imports.tf` includes sample import statements for bringing existing Proxmox VMs under Terraform management.
 
 ## Prerequisites
 
@@ -51,7 +50,7 @@ az login
 3. Run the plan script:
 
 ```bash
-./terraform-plan.sh
+./terraform-plan.sh '<additional command line params can be found in 1Pass for running this locally.>'
 ```
 
 4. Apply the generated plan:
@@ -71,8 +70,6 @@ This repository uses an Azure Storage backend configured dynamically by `terrafo
 
 The script reads backend configuration values from Azure Key Vault secrets:
 
-- `backend-resource-group`
-- `backend-storage-account`
 - `backend-container-name`
 - `backend-state-key`
 
@@ -80,13 +77,7 @@ The script reads backend configuration values from Azure Key Vault secrets:
 
 - `azurerm_management_lock.homelab` protects the Azure resource group from accidental deletion.
 - The `key_vault` role assignment applies the `Key Vault Secrets Officer` role to a fixed principal ID (Entra ID Security Group).
-- `imports.tf` contains sample import blocks for existing Proxmox VMs. Update IDs and node names before using.
-
-## Customization
-
-To add or modify VMs, update `homelab.tfvars` under `virtual_machines` and provide appropriate Proxmox network/disks settings.
-
-To override tagging or global settings, update `variables.tf` and `local.global_settings` in `_locals.tf`.
+- All resources are tagged correctly
 
 ## License
 
