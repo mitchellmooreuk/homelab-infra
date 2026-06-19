@@ -1,5 +1,5 @@
 module "key_vault" {
-  source = "git@github.com:mitchellmooreuk/terraform-modules.git//azure-keyvault?ref=v1.5.0"
+  source = "git@github.com:mitchellmooreuk/terraform-modules.git//azure-keyvault?ref=v1.6.0"
 
   application_name    = var.application_name
   location            = var.location
@@ -8,13 +8,13 @@ module "key_vault" {
   tags                = local.base_tags
   global_settings     = local.global_settings
 
-  sku_name = "standard"
+  sku_name             = "standard"
 }
 
 module "virtual_machines" {
   for_each = var.virtual_machines
 
-  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.5.0"
+  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.6.0"
 
   vm_name         = each.key
   vm_id           = each.value.vm_id
