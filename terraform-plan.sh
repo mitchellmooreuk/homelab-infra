@@ -14,15 +14,28 @@ storage_ip_exists=$(az storage account network-rule list \
   --query "ipRules[?ipAddressOrRange=='$current_ip'].ipAddressOrRange" \
   -o tsv)
 
+key_vault_ip_exists=$(az keyvault network-rule list \
+  --name "${key_vault_name}" \
+  --query "ipRules[?value=='$current_ip'].value" \
+  -o tsv)
+
 if [ -z "$storage_ip_exists" ]; then
   echo "=== Your current public IP address does not exist on the storage account's network rules. Adding it now... ==="
   az storage account network-rule add \
     --resource-group "${resource_group_name}" \
     --account-name "${storage_account_name}" \
     --ip-address "$current_ip"
-  sleep 5
 else
   echo "=== Your IP address already exists on the storage account's network rules ==="
+fi
+
+if [ -z "$key_vault_ip_exists" ]; then
+  echo "=== Your current public IP address does not exist on the key vault's network rules. Adding it now... ==="
+  az keyvault network-rule add \
+    --name "${key_vault_name}" \
+    --ip-address "$current_ip"
+else
+  echo "=== Your IP address already exists on the key vault's network rules ==="
 fi
 
 echo "=== Fetching configuration and credentials from Azure Key Vault ==="
