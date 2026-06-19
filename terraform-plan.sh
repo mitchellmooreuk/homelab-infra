@@ -8,35 +8,14 @@ storage_account_name="$3"
 
 current_ip=$(curl -s https://ifconfig.me)
 
-storage_ip_exists=$(az storage account network-rule list \
+az storage account network-rule add \
   --resource-group "${resource_group_name}" \
   --account-name "${storage_account_name}" \
-  --query "ipRules[?ipAddressOrRange=='$current_ip'].ipAddressOrRange" \
-  -o tsv)
+  --ip-address "$current_ip"
 
-key_vault_ip_exists=$(az keyvault network-rule list \
+az keyvault network-rule add \
   --name "${key_vault_name}" \
-  --query "ipRules[?value=='$current_ip'].value" \
-  -o tsv)
-
-if [ -z "$storage_ip_exists" ]; then
-  echo "=== Your current public IP address does not exist on the storage account's network rules. Adding it now... ==="
-  az storage account network-rule add \
-    --resource-group "${resource_group_name}" \
-    --account-name "${storage_account_name}" \
-    --ip-address "$current_ip"
-else
-  echo "=== Your IP address already exists on the storage account's network rules ==="
-fi
-
-if [ -z "$key_vault_ip_exists" ]; then
-  echo "=== Your current public IP address does not exist on the key vault's network rules. Adding it now... ==="
-  az keyvault network-rule add \
-    --name "${key_vault_name}" \
-    --ip-address "$current_ip"
-else
-  echo "=== Your IP address already exists on the key vault's network rules ==="
-fi
+  --ip-address "$current_ip"
 
 echo "=== Fetching configuration and credentials from Azure Key Vault ==="
 backend_container=$(az keyvault secret show --name "backend-container-name" --vault-name "$key_vault_name" --query value -o tsv)
@@ -48,7 +27,6 @@ tenant_id=$(az keyvault secret show --name "tenant-id" --vault-name "$key_vault_
 
 echo "✓ All secrets downloaded safely."
 echo "=== Initializing Terraform with Dynamic Backend ==="
-
 terraform init -reconfigure \
   -backend-config="resource_group_name=${resource_group_name}" \
   -backend-config="storage_account_name=${storage_account_name}" \
@@ -57,7 +35,6 @@ terraform init -reconfigure \
   -backend-config="use_azuread_auth=true"
 
 echo "=== Running Terraform Plan ==="
-
 terraform plan \
   -var-file="homelab.tfvars" \
   -out="tfplan" \
