@@ -20,10 +20,9 @@ provider "azurerm" {
 }
 
 provider "proxmox" {
-  endpoint = var.pve_endpoint
-  insecure = true
-  username = var.pve_username
-  password = var.pve_password
+  endpoint  = var.pve_endpoint
+  insecure  = true
+  api_token = var.pve_api_token
 }
 
 resource "azurerm_resource_group" "homelab" {

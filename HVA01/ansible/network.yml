@@ -1,0 +1,23 @@
+---
+- name: Configure Proxmox VLAN-Aware Bridge
+  hosts: proxmox_nodes
+  become: true
+
+  tasks:
+    - name: Back up current network interfaces configuration
+      ansible.builtin.copy:
+        src: /etc/network/interfaces
+        dest: /etc/network/interfaces.bak
+        remote_src: true
+        mode: '0644'
+
+    - name: Deploy VLAN-Aware network interfaces configuration
+      ansible.builtin.template:
+        src: interfaces.j2
+        dest: /etc/network/interfaces
+        mode: '0644'
+      notify: Apply Network Changes
+
+  handlers:
+    - name: Apply Network Changes
+      ansible.builtin.command: ifreload -a
