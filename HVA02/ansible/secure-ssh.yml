@@ -2,24 +2,31 @@
 - name: Secure Host SSH Configurations
   hosts: proxmox_nodes
   become: true
-  vars:
-    # Replace this with your actual public key string
-    my_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC6P64Ta4IwU/C/5Zx2hkrNkKVRNYmHPnItNaIGmoAa5 mitchell@tcpit.co.uk" 
-
   tasks:
-    - name: Ensure the .ssh directory exists for Root
-      ansible.builtin.file:
-        path: /root/.ssh
-        state: directory
-        mode: '0700'
-        owner: root
-        group: root
+  - name: Generate ssh key
+    ansible.builtin.command:
+      cmd: ssh-keygen -t rsa -b 4096 -m PEM -f "~/.ssh/id_rsa_terraform" -N ""
+    delegate_to: localhost
+    become: false
+    args:
+      creates: "~/.ssh/id_rsa_terraform"
 
-    - name: Add public key to /root/.ssh/authorized_keys
-      ansible.builtin.authorized_key:
+  - name: Insert key into memory
+    ansible.builtin.slurp:
+      src: "~/.ssh/id_rsa_terraform.pub"
+    delegate_to: localhost
+    become: false
+    register: terraform_pub_key
+
+- name: Copy key to proxmox node
+  hosts: proxmox_nodes
+  gather_facts: false
+  tasks:
+    - name: Copy key
+      ansible.posix.authorized_key:
         user: root
         state: present
-        key: "{{ my_public_key }}"
+        key: "{{ terraform_pub_key['content'] | b64decode }}"
 
     - name: Harden SSH config
       ansible.builtin.lineinfile:
