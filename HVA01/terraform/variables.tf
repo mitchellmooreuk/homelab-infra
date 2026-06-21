@@ -29,16 +29,6 @@ variable "global_settings" {
   default     = {}
 }
 
-variable "pve_username" {
-  type        = string
-  description = "The username of the user on the PVE host to authenticate with."
-}
-
-variable "pve_password" {
-  type        = string
-  description = "The password of the user on the PVE host to authenticate with."
-}
-
 variable "pve_endpoint" {
   type        = string
   description = "The endpoint of the PVE to connect to. Expressed as an IP Address."
@@ -48,6 +38,11 @@ variable "tags" {
   type        = map(string)
   description = "(Optional) A map of tags to add to the resource"
   default     = {}
+}
+
+variable "pve_api_token" {
+  type        = string
+  description = "(Required) The API token used to authenticated against PVE."
 }
 
 variable "virtual_machines" {
@@ -85,5 +80,5 @@ variable "virtual_machines" {
     }))
   }))
   description = "(Optional) A map of virtual machines to be provisoned"
-  default = {}
+  default     = {}
 }
