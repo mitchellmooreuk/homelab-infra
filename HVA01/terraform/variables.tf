@@ -84,5 +84,6 @@ variable "virtual_machines" {
       mac_address = optional(string)
     }))
   }))
+  description = "(Optional) A map of virtual machines to be provisoned"
   default = {}
 }
