@@ -1,8 +1,7 @@
 module "virtual_machines" {
   for_each = var.virtual_machines
 
-  # source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.6.1"
-  source = "/home/mitch/Desktop/projects/terraform-modules/proxmox-vm"
+  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.7.0"
 
   vm_name         = each.key
   vm_id           = each.value.vm_id
