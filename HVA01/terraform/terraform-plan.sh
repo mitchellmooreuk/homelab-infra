@@ -34,7 +34,7 @@ terraform init -reconfigure \
 
 echo "=== Running Terraform Plan ==="
 terraform plan \
-  -var-file="core.tfvars" \
+  -var-file="HVA01.tfvars" \
   -out="tfplan" \
   -var="pve_api_token=${HVA01_api_token}" \
   -var="tenant_id=${tenant_id}" 
