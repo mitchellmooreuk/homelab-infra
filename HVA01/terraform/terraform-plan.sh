@@ -20,9 +20,7 @@ az keyvault network-rule add \
 echo "=== Fetching configuration and credentials from Azure Key Vault ==="
 backend_container=$(az keyvault secret show --name "backend-container-name" --vault-name "$key_vault_name" --query value -o tsv)
 backend_key_HVA01=$(az keyvault secret show --name "backend-state-key-HVA01" --vault-name "$key_vault_name" --query value -o tsv)
-
-pve_username=$(az keyvault secret show --name "pve-username" --vault-name "$key_vault_name" --query value -o tsv)
-pve_password=$(az keyvault secret show --name "pve-password" --vault-name "$key_vault_name" --query value -o tsv)
+HVA01_api_token=$(az keyvault secret show --name "HVA01-api-token" --vault-name "$key_vault_name" --query value -o tsv)
 tenant_id=$(az keyvault secret show --name "tenant-id" --vault-name "$key_vault_name" --query value -o tsv)
 
 echo "✓ All secrets downloaded safely."
@@ -38,6 +36,5 @@ echo "=== Running Terraform Plan ==="
 terraform plan \
   -var-file="core.tfvars" \
   -out="tfplan" \
-  -var="pve_username=${pve_username}" \
-  -var="pve_password=${pve_password}" \
+  -var="pve_api_token=${HVA01_api_token}" \
   -var="tenant_id=${tenant_id}" 
