@@ -33,6 +33,6 @@ terraform init -reconfigure \
 
 echo "=== Running Terraform Plan ==="
 terraform plan \
-  -var-file="k8s.tfvars" \
+  -var-file="HVA02.tfvars" \
   -out="tfplan" \
   -var="pve_api_token=${HVA02_api_token}" 
