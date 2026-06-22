@@ -1,0 +1,209 @@
+---
+# Setup network configuration
+- name: Configure Proxmox VLAN-Aware Bridge
+  hosts: proxmox_nodes
+  become: true
+
+  tasks:
+    - name: Back up current network interfaces configuration
+      ansible.builtin.copy:
+        src: /etc/network/interfaces
+        dest: /etc/network/interfaces.bak
+        remote_src: true
+        mode: '0644'
+
+    - name: Deploy VLAN-Aware network interfaces configuration
+      ansible.builtin.template:
+        src: interfaces.j2
+        dest: /etc/network/interfaces
+        mode: '0644'
+      notify: Apply Network Changes
+
+  handlers:
+    - name: Apply Network Changes
+      ansible.builtin.command: ifreload -a
+
+# Handle SSH
+- name: Secure Host SSH Configurations
+  hosts: proxmox_nodes
+  become: true
+  tasks:
+    - name: Generate ssh key
+      ansible.builtin.command:
+        cmd: ssh-keygen -t rsa -b 4096 -m PEM -f "~/.ssh/id_rsa_terraform" -N ""
+      delegate_to: localhost
+      become: false
+      args:
+        creates: "~/.ssh/id_rsa_terraform"
+
+    - name: Insert key into memory
+      ansible.builtin.slurp:
+        src: "~/.ssh/id_rsa_terraform.pub"
+      delegate_to: localhost
+      become: false
+      register: terraform_pub_key
+
+- name: Copy key to proxmox node
+  hosts: proxmox_nodes
+  gather_facts: false
+  tasks:
+    - name: Copy key
+      ansible.posix.authorized_key:
+        user: root
+        state: present
+        key: "{{ terraform_pub_key['content'] | b64decode }}"
+
+    - name: Harden SSH config
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      with_items:
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+        - { regexp: '^#?ChallengeResponseAuthentication', line: 'ChallengeResponseAuthentication no' }
+        - { regexp: '^#?KbdInteractiveAuthentication', line: 'KbdInteractiveAuthentication no' }
+      notify: Restart SSH Daemon
+
+  handlers:
+    - name: Restart SSH Daemon
+      ansible.builtin.service:
+        name: ssh
+        state: restarted  
+
+# Download Ubuntu cloud init image
+- name: Playbook to download cloud image
+  hosts: proxmox_nodes
+  gather_facts: false
+
+  tasks:
+  - name: Download Ubuntu 24.04 Cloud-Init Image to Local Storage
+    ansible.builtin.get_url:
+      url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+      dest: /var/lib/vz/template/iso/ubuntu-24.04-cloudimage.img
+      mode: '0644'
+      timeout: 1000 # Gives it plenty of time to pull the large file down
+
+- name: Deploy k8s control plane
+  hosts: controllers
+  become: true
+  tasks:
+    - name: Update packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+      tags: prep
+
+    - name: Download and execute K3s installer script
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --tls-san={{ ansible_host }} \
+          --write-kubeconfig-mode "0644"
+      args:
+        creates: /usr/local/bin/k3s
+      tags: k3s-install
+
+    - name: Wait for the control plane node to become ready
+      command: k3s kubectl get nodes
+      register: node_status
+      until: '"Ready" in node_status.stdout'
+      retries: 10
+      delay: 5
+
+    - name: Fetch the cluster join token for worker nodes
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_encoded
+
+    - name: Print Join Token for verification
+      debug:
+        msg: "Your K3s Join Token is: {{ k3s_token_encoded.content | b64decode | trim }}"
+
+- name: Extract Token from Controller
+  hosts: controllers
+  become: true
+  tasks:
+    - name: Get join token
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+    - name: Share token
+      add_host:
+        name: "K3S_TOKEN_HOLDER"
+        token: "{{ k3s_token.content | b64decode | trim }}"
+
+- name: Bootstrap K3s Worker Node
+  hosts: workers
+  become: true
+  tasks:
+    - name: Download and execute K3s agent installer
+      shell: |
+        curl -sfL https://get.k3s.io | K3S_URL=https://10.25.25.5:6443 \
+        K3S_TOKEN="{{ hostvars['K3S_TOKEN_HOLDER']['token'] }}" sh -
+      args:
+        creates: /usr/local/bin/k3s-agent-uninstall.sh
+
+- name: Post-Cluster Configuration & Runner Deployment
+  hosts: controllers
+  become: true
+  vars:
+    github_pat_token: "{{ gh_patToken }}"
+    github_username: "{{ gh_username}}"
+    github_repository: "{{ gh_repository }}"
+
+  tasks:
+    - name: Install kubernetes python library via apt
+      apt:
+        name: python3-kubernetes
+        state: present
+
+    - name: Create the GitHub Secret inside the cluster
+      kubernetes.core.k8s:
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: github-secrets
+            namespace: default
+          type: Opaque
+          stringData:
+            pat-token: "{{ github_pat_token }}"
+
+    - name: Deploy the Core GitHub Runner Deployment
+      kubernetes.core.k8s:
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: github-runner
+            namespace: default
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: github-runner
+            template:
+              metadata:
+                labels:
+                  app: github-runner
+              spec:
+                containers:
+                - name: runner
+                  image: homelab-runner:v1
+                  imagePullPolicy: IfNotPresent
+                  env:
+                  - name: GH_PAT
+                    valueFrom:
+                      secretKeyRef:
+                        name: github-secrets
+                        key: pat-token
+                  - name: GH_OWNER
+                    value: "{{ github_username }}"
+                  - name: GH_REPO
+                    value: "{{ github_repository }}"

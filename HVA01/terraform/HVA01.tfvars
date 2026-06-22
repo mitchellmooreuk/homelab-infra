@@ -7,11 +7,12 @@ pve_endpoint = "https://10.25.25.250:8006/"
 
 virtual_machines = {
   "pfsense" = {
-    vm_id     = 100
-    node_name = "proxmox"
-    cpu_cores = 2
-    memory_mb = 4096
-    bios      = "ovmf"
+    vm_id          = 100
+    vm_description = "The VM for PfSense."
+    node_name      = "proxmox"
+    cpu_cores      = 2
+    memory_mb      = 3072
+    bios           = "ovmf"
 
     scsi_type = "virtio-scsi-single"
 
@@ -45,11 +46,12 @@ virtual_machines = {
     ]
   },
   unifi = {
-    vm_id     = 101
-    node_name = "proxmox"
-    cpu_cores = 2
-    memory_mb = 2048
-    bios      = "ovmf"
+    vm_id          = 101
+    vm_description = "The VM for the Unifi controller."
+    node_name      = "proxmox"
+    cpu_cores      = 2
+    memory_mb      = 2048
+    bios           = "ovmf"
 
     scsi_type = "virtio-scsi-single"
 
@@ -74,11 +76,12 @@ virtual_machines = {
     ]
   },
   adguard = {
-    vm_id     = 102
-    node_name = "proxmox"
-    cpu_cores = 2
-    memory_mb = 2048
-    bios      = "seabios"
+    vm_id          = 102
+    vm_description = "The VM for AdGuard."
+    node_name      = "proxmox"
+    cpu_cores      = 2
+    memory_mb      = 2048
+    bios           = "seabios"
 
     scsi_type = "virtio-scsi-single"
 
@@ -86,6 +89,43 @@ virtual_machines = {
       {
         datastore_id      = "local-lvm"
         size_gb           = 8
+        interface         = "scsi0"
+        io_thread         = true
+        type              = "4m"
+        pre_enrolled_keys = true
+      }
+    ]
+
+    cd_roms = [
+      {
+        file_name = "local:iso/ubuntu-24.04.4-live-server-amd64.iso"
+        interface = "ide2"
+      }
+    ]
+
+    network_devices = [
+      {
+        bridge      = "vmbr0" # net0
+        model       = "virtio"
+        mac_address = "BC:24:11:9F:FE:44"
+        vlan_id     = 25
+      }
+    ]
+  },
+  "commander" = {
+    vm_id          = 103
+    vm_description = "A Command VM that interfaces with other VMs on the network."
+    node_name      = "proxmox"
+    cpu_cores      = 2
+    memory_mb      = 1024
+    bios           = "seabios"
+
+    scsi_type = "virtio-scsi-single"
+
+    disks = [
+      {
+        datastore_id      = "local-lvm"
+        size_gb           = 16
         interface         = "scsi0"
         io_thread         = true
         type              = "4m"
