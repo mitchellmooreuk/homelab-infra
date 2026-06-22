@@ -17,8 +17,6 @@ variable "virtual_machines" {
     cpu_type       = optional(string, "x86-64-v2-AES") # Recommended to use x86-64-v2-AES as per provider docs.
     memory_mb      = number
     bios           = optional(string) # Can be either "seabios" or "ovmf".
-    is_template    = optional(bool, false)
-    clone_vm_id    = optional(number)
 
     scsi_type = optional(string) # Can be either "virtio-scsi-single" or "virtio-scsi-pci". Defaults to virtio-scsi-pci.
 
@@ -31,7 +29,7 @@ variable "virtual_machines" {
       file_format       = optional(string, "raw")
       type              = optional(string, "4m") # Size and type of OVMF EFI Disk. Only required if BIOS is set to OVMF.
       pre_enrolled_keys = optional(bool, true)
-    })))
+    })), [])
 
     cd_roms = optional(list(object({
       file_name = optional(string)
@@ -44,6 +42,9 @@ variable "virtual_machines" {
       vlan_id     = optional(number)
       mac_address = optional(string)
     }))
+
+    ipv4_address = optional(string)
+    gateway      = optional(string)
   }))
   description = "(Optional) A map of virtual machines to be provisoned"
   default     = {}
