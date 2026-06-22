@@ -6,11 +6,14 @@ iface lo inet loopback
 iface nic0 inet manual
 
 auto vmbr0
-iface vmbr0 inet static
-        address 10.25.25.249/24
-        gateway 10.25.25.1
+iface vmbr0 inet manual
         bridge-ports nic0
         bridge-stp off
         bridge-fd 0
         bridge-vlan-aware yes
         bridge-vids 2-4094
+
+auto vmbr0.25
+iface vmbr0.25 inet static
+        address 10.25.25.249/24
+        gateway 10.25.25.1

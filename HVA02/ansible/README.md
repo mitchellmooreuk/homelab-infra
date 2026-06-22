@@ -12,6 +12,7 @@ Ensure Ansible is installed locally:
 sudo dnf install ansible -y
 ansible-galaxy collection install ansible.posix
 ansible-galaxy collection install azure.azcollection
+ansible-galaxy collection install kubernetes.core
 ```
 I've used the dnf package manager here, but you can use whatever your machine is running.
 

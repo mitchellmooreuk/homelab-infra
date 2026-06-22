@@ -148,5 +148,8 @@ virtual_machines = {
         vlan_id     = 25
       }
     ]
+
+    ipv4_address = "10.25.25.7/24"
+    gateway      = "10.25.25.1"
   }
 }
