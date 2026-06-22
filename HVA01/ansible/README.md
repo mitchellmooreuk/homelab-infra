@@ -21,23 +21,10 @@ I've used the dnf package manager here, but you can use whatever your machine is
 HVA01 ansible_host=ip_address_of_HVA01 ansible_user=root
 ```
 
-### 3. Run secure-ssh.yml
-This will ensure that password authentication is disabled. You will need to populate the 'my_public_key' variable with your public key first.
-```bash
-ansible-playbook -i inventory.ini secure-ssh.yml -k
-```
-Then ensure that the SSH hardening actually worked by running:
-```bash
-ssh -o PubkeyAuthentication=no root@10.25.25.250
-``` 
-You should see an output similar to # Expected output: Permission denied (publickey).
+### 3. Run HVA01.yaml
+This will configure HVA01 by setting network interfaces, generating and injecting an SSH Key to the target node and generating an API key which is then uploaded to Azure Keyvault for authentication via Terraform.
 
-### 4. Configure the vmbr to be vlan aware
-```bash
-ansible-playbook -i inventory.ini configure-network.yml
-```
-
-### 5. Generate API token for Terraform
+If this is the first time you are running Ansible against HVA01, you MUST run the command with "-u root --ask-pass" appended. The reason for this is because HVA01 hasn't yet had any SSH keys copied over to it, so password authentication is the only option here. Subsequent runs of Ansible against HVA01 require this to be removed, as SSH hardening has taken place and the configuration file for sshd has been edited to reject PasswordAuthentication.
 ```bash
 ansible-playbook -i inventory.ini generate-api-token.yml -e "keyvault_name=your_key_vault_name_here"
 ```
