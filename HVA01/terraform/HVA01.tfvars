@@ -108,5 +108,41 @@ virtual_machines = {
         vlan_id     = 25
       }
     ]
+  },
+  "commander" = {
+    vm_id     = 103
+    node_name = "proxmox"
+    cpu_cores = 2
+    memory_mb = 1024
+    bios      = "seabios"
+
+    scsi_type = "virtio-scsi-single"
+
+    disks = [
+      {
+        datastore_id      = "local-lvm"
+        size_gb           = 16
+        interface         = "scsi0"
+        io_thread         = true
+        type              = "4m"
+        pre_enrolled_keys = true
+      }
+    ]
+
+    cd_roms = [
+      {
+        file_name = "local:iso/ubuntu-24.04.4-live-server-amd64.iso"
+        interface = "ide2"
+      }
+    ]
+
+    network_devices = [
+      {
+        bridge      = "vmbr0" # net0
+        model       = "virtio"
+        mac_address = "BC:24:11:9F:FE:44"
+        vlan_id     = 25
+      }
+    ]
   }
 }
