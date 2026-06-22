@@ -1,0 +1,130 @@
+- name: Bootstrap Automation Command Node
+  hosts: command_node
+  become: true
+  gather_facts: true
+
+  vars:
+    # Define the core collections you need installed for the local user
+    galaxy_collections:
+      - kubernetes.core
+      - azure.azcollection
+      - ansible.posix
+      - community.general
+
+  tasks:
+    - name: Ensure system is fully updated
+      apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install underlying baseline dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - git
+          - python3-pip
+        state: present
+
+    - name: Download HashiCorp GPG key
+      get_url:
+        url: https://apt.releases.hashicorp.com/gpg
+        dest: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        mode: '0644'
+
+    - name: Add HashiCorp official repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        state: present
+        filename: hashicorp
+
+    - name: Install Terraform CLI
+      apt:
+        name: terraform
+        state: present
+        update_cache: true
+
+    - name: Download Microsoft Azure GPG key
+      get_url:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        dest: /usr/share/keyrings/microsoft-archive-keyring.gpg
+        mode: '0644'
+
+    - name: Add Azure CLI official repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repo/azure-cli {{ ansible_distribution_release }} main"
+        state: present
+        filename: azure-cli
+
+    - name: Install Azure CLI
+      apt:
+        name: azure-cli
+        state: present
+        update_cache: true
+
+    - name: Install Ansible Galaxy collections for the runtime user
+      become: false
+      ansible.builtin.command:
+        cmd: "ansible-galaxy collection install {{ item }} --upgrade"
+      loop: "{{ galaxy_collections }}"
+      changed_when: true
+
+    - name: Create directory for GitHub runner
+      file:
+        path: /actions-runner
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Download GitHub Actions runner package
+      get_url:
+        url: https://github.com/actions/runner/releases/download/v2.317.0/actions-runner-linux-x64-2.317.0.tar.gz
+        dest: /tmp/actions-runner.tar.gz
+        mode: '0644'
+
+    - name: Extract runner package
+      unarchive:
+        src: /tmp/actions-runner.tar.gz
+        dest: /actions-runner
+        remote_src: true
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Check if runner is already configured
+      stat:
+        path: /actions-runner/.runner
+      register: runner_configured
+
+    - name: Get a temporary registration token using PAT
+      become: false
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ gh_owner }}/{{ gh_repo }}/actions/runners/registration-token"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ gh_pat }}"
+          Accept: "application/vnd.github+json"
+          X-GitHub-Api-Version: "2022-11-28"
+        status_code: 201
+      register: github_token_response
+      when: not runner_configured.stat.exists
+
+    - name: Configure GitHub runner
+      become: false
+      command:
+        cmd: "./config.sh --url https://github.com/{{ gh_owner }}/{{ gh_repo }} --token {{ gh_token }} --name hva01-command-runner --labels command-node --unattended"
+        chdir: /actions-runner
+      when: not runner_configured.stat.exists
+
+    - name: Install and start runner systemd service
+      command:
+        cmd: "{{ item }}"
+        chdir: /actions-runner
+      loop:
+        - "./svc.sh install"
+        - "./svc.sh start"
+      when: not runner_configured.stat.exists
