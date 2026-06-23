@@ -1,5 +1,5 @@
 module "key_vault" {
-  source = "git@github.com:mitchellmooreuk/terraform-modules.git//azure-keyvault?ref=v1.6.1"
+  source = "git::https://github.com/mitchellmooreuk/terraform-modules.git//azure-keyvault?ref=v1.6.1"
 
   application_name    = var.application_name
   location            = var.location
