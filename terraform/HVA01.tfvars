@@ -135,7 +135,7 @@ virtual_machines = {
 
     cd_roms = [
       {
-        file_name = "local:iso/ubuntu-24.04.4-live-server-amd64.iso"
+        file_name = "local:iso/ubuntu-24.04-cloudimage.img"
         interface = "ide2"
       }
     ]
@@ -144,7 +144,7 @@ virtual_machines = {
       {
         bridge      = "vmbr0" # net0
         model       = "virtio"
-        mac_address = "BC:24:11:9F:FE:44"
+        mac_address = "BC:24:11:9F:FE:45"
         vlan_id     = 25
       }
     ]

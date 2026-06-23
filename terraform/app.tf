@@ -14,7 +14,7 @@ module "key_vault" {
 module "virtual_machines" {
   for_each = var.virtual_machines
 
-  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.8.0"
+  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.8.1"
 
   vm_name         = each.key
   vm_id           = each.value.vm_id
