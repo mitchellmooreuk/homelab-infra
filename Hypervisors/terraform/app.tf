@@ -1,7 +1,7 @@
 module "download_image" {
   for_each = var.image_download
 
-  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-download-image?ref=v1.9.0"
+  source = "git::https://github.com/mitchellmooreuk/terraform-modules.git//proxmox-download-image?ref=v1.9.0"
 
   content_type = each.value.content_type
   datastore_id = each.value.datastore_id
@@ -13,7 +13,7 @@ module "download_image" {
 module "virtual_machines" {
   for_each = var.virtual_machines
 
-  source = "git@github.com:mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.9.0"
+  source = "git::https://github.com/mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.9.0"
 
   vm_name         = each.key
   vm_id           = each.value.vm_id
