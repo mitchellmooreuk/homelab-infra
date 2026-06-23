@@ -1,40 +1,3 @@
-variable "application_name" {
-  type        = string
-  description = "The name of the application for which resources are being deployed."
-}
-
-variable "environment" {
-  type        = string
-  description = "The environment in which the resources are being deployed."
-}
-
-variable "owner" {
-  type        = string
-  description = "The owner of the resources being deployed."
-}
-
-variable "location" {
-  type        = string
-  description = "The location in which the resources are being deployed."
-}
-
-variable "tenant_id" {
-  type        = string
-  description = "The ID of the Azure tenant."
-}
-
-variable "global_settings" {
-  type        = map(any)
-  description = "A map of global settings that can be used to override default values for resources."
-  default     = {}
-}
-
-variable "tags" {
-  type        = map(string)
-  description = "(Optional) A map of tags to add to the resource"
-  default     = {}
-}
-
 variable "pve_api_token" {
   type        = string
   description = "(Required) The API token used to authenticated against PVE."
@@ -43,6 +6,18 @@ variable "pve_api_token" {
 variable "pve_endpoint" {
   type        = string
   description = "The endpoint of the PVE to connect to. Expressed as an IP Address."
+}
+
+variable "image_download" {
+  type = map(object({
+    content_type = string
+    datastore_id = string
+    node_name    = string
+    url          = string
+    file_name    = optional(string)
+  }))
+  description = "(Optional) A map of images to be downloaded."
+  default     = {}
 }
 
 variable "virtual_machines" {
@@ -63,6 +38,7 @@ variable "virtual_machines" {
       interface         = string
       io_thread         = optional(bool, true)
       file_format       = optional(string, "raw")
+      import_from       = optional(string)
       type              = optional(string, "4m") # Size and type of OVMF EFI Disk. Only required if BIOS is set to OVMF.
       pre_enrolled_keys = optional(bool, true)
     }))
@@ -79,8 +55,12 @@ variable "virtual_machines" {
       mac_address = optional(string)
     }))
 
-    ipv4_address = optional(string)
-    gateway      = optional(string)
+    cloud_init = optional(object({
+      datastore_id = string
+      interface    = string
+      ipv4_address = optional(string)
+      gateway      = optional(string)
+    }))
   }))
   description = "(Optional) A map of virtual machines to be provisoned"
   default     = {}
