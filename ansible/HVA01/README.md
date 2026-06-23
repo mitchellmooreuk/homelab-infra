@@ -28,7 +28,7 @@ This will configure HVA01 by setting network interfaces correctly, generating an
 
 If this is the first time you are running Ansible against HVA01, you MUST run the command below with "-u root --ask-pass" appended. The reason for this is because HVA01 hasn't yet had any SSH keys copied over to it, so password authentication is the only option here. Subsequent runs of Ansible against HVA01 require this to be removed, as SSH hardening has taken place and the configuration file for sshd has been edited to reject PasswordAuthentication.
 ```bash
-ansible-playbook -i inventory.ini generate-api-token.yml -e "keyvault_name=your_key_vault_name_here"
+ansible-playbook -i inventory.ini HVA01.yaml -e "keyvault_name=your_key_vault_name_here"
 ```
 
 ### Fin!
