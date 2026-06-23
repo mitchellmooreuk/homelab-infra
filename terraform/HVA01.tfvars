@@ -5,16 +5,6 @@ location         = "uksouth"
 
 pve_endpoint = "https://10.25.25.250:8006/"
 
-image_download = {
-  "ubuntu_24_04" = {
-    content_type = "import"
-    datastore_id = "local"
-    node_name    = "proxmox"
-    url          = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
-    file_name    = "noble-server-cloudimg-amd64.qcow2"
-  }
-}
-
 virtual_machines = {
   "pfsense" = {
     vm_id          = 100
@@ -134,11 +124,19 @@ virtual_machines = {
 
     disks = [
       {
-        datastore_id = "local-lvm"
-        import_from  = "local:import/noble-server-cloudimg-amd64.qcow2"
-        interface    = "scsi0"
-        io_thread    = true
-        size_gb      = 32
+        datastore_id      = "local-lvm"
+        size_gb           = 16
+        interface         = "scsi0"
+        io_thread         = true
+        type              = "4m"
+        pre_enrolled_keys = true
+      }
+    ]
+
+    cd_roms = [
+      {
+        file_name = "local:iso/ubuntu-24.04-cloudimage.img"
+        interface = "ide2"
       }
     ]
 
@@ -146,16 +144,12 @@ virtual_machines = {
       {
         bridge      = "vmbr0" # net0
         model       = "virtio"
-        mac_address = "BC:24:11:4D:E4:FB"
+        mac_address = "BC:24:11:9F:FE:45"
         vlan_id     = 25
       }
     ]
 
-    cloud_init = {
-      datastore_id = "local-lvm"
-      interface    = "ide0"
-      ipv4_address = "10.25.25.7/24"
-      gateway      = "10.25.25.1"
-    }
+    ipv4_address = "10.25.25.7/24"
+    gateway      = "10.25.25.1"
   }
 }

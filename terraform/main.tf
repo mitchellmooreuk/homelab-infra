@@ -19,6 +19,18 @@ provider "azurerm" {
   features {}
 }
 
+provider "proxmox" {
+  endpoint  = var.pve_endpoint
+  insecure  = true
+  api_token = var.pve_api_token
+
+  ssh {
+    agent       = false
+    username    = "root"
+    private_key = file("~/.ssh/id_rsa_terraform")
+  }
+}
+
 resource "azurerm_resource_group" "homelab" {
   name     = "rg-homelab-infra"
   location = var.location

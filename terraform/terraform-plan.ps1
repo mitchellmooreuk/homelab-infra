@@ -2,6 +2,9 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true)]
+    [string]$nodeName,
+
+    [Parameter(Mandatory=$true)]
     [string]$keyVaultName,
 
     [Parameter(Mandatory=$true)]
@@ -29,7 +32,8 @@ az keyvault network-rule add `
 Write-Host "=== Fetching configuration and credentials from Azure Key Vault ===" -ForegroundColor Cyan
 
 $backendContainer = az keyvault secret show --name "backend-container-name" --vault-name $KeyVaultName --query value -o tsv
-$backendKey       = az keyvault secret show --name "backend-state-key-azure" --vault-name $KeyVaultName --query value -o tsv
+$backendKey       = az keyvault secret show --name "backend-state-key-$nodeName" --vault-name $KeyVaultName --query value -o tsv
+$ApiToken         = az keyvault secret show --name "$nodeName-api-token" --vault-name $KeyVaultName --query value -o tsv
 $tenantId         = az keyvault secret show --name "tenant-id" --vault-name $KeyVaultName --query value -o tsv
 
 Write-Host "✓ All secrets fetched" -ForegroundColor Green
@@ -44,5 +48,7 @@ terraform init -reconfigure `
 
 Write-Host "=== Running Terraform Plan ===" -ForegroundColor Cyan
 terraform plan `
+  -var-file="$nodeName.tfvars" `
   -out="tfplan" `
+  -var="pve_api_token=$ApiToken" `
   -var="tenant_id=$tenantId"
