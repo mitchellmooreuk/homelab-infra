@@ -72,19 +72,6 @@
         name: ssh
         state: restarted  
 
-# Download Ubuntu cloud init image
-- name: Playbook to download cloud image
-  hosts: proxmox_nodes
-  gather_facts: false
-
-  tasks:
-  - name: Download Ubuntu 24.04 Cloud-Init Image to Local Storage
-    ansible.builtin.get_url:
-      url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
-      dest: /var/lib/vz/template/iso/ubuntu-24.04-cloudimage.img
-      mode: '0644'
-      timeout: 1000 # Gives it plenty of time to pull the large file down
-
 - name: Deploy k8s control plane
   hosts: controllers
   become: true
