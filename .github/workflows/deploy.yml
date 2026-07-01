@@ -29,7 +29,7 @@ jobs:
       resource_group_name: ${{ vars.RESOURCE_GROUP_NAME }}
       storage_account_name: ${{ vars.STORAGE_ACCOUNT_NAME }}
       container_name: ${{ vars.CONTAINER_NAME }}
-      working-directory: ${{ (inputs.application == 'HVA01' || inputs.application == 'HVA02') && 'Hypervisors/Terraform' || 'Azure' }}
+      working-directory: ${{ (inputs.application == 'HVA01' || inputs.application == 'HVA02') && 'Hypervisors/terraform' || 'Azure' }}
     secrets:
       azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
       azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
