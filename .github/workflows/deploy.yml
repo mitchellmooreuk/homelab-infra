@@ -1,7 +1,7 @@
 name: Deploy - Terraform - All
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       application:
         description: 'Application to deploy'
