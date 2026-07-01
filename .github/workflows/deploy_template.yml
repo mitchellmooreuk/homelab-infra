@@ -1,0 +1,129 @@
+on:
+  workflow_call:
+    inputs:
+      application:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+      resource_group_name:
+        required: true
+        type: string
+      storage_account_name:
+        required: true
+        type: string
+      container_name:
+        required: true
+        type: string
+    secrets:
+      azure-client-id:
+        required: true
+      azure-tenant-id:
+        required: true
+      azure-subscription-id:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan:
+    runs-on: [self-hosted, linux, commander-runner]
+    env:
+      ARM_CLIENT_ID: ${{ secrets.azure-client-id }}
+      ARM_TENANT_ID: ${{ secrets.azure-tenant-id }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.azure-subscription-id }}
+      ARM_USE_OIDC: true
+    environment: ${{ inputs.environment }}
+    outputs:
+      plan-exit-code: ${{ steps.plan.outputs.exitcode }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~> 1.15.0
+
+      - name: Azure Login
+        uses: Azure/login@v2
+        with:
+          client-id: ${{ secrets.azure-client-id }}
+          tenant-id: ${{ secrets.azure-tenant-id }}
+          subscription-id: ${{ secrets.azure-subscription-id }}
+
+      - name: Terraform Init
+        working-directory: ${System.DefaultWorkingDirectory}/${{ inputs.working-directory }}/${{ inputs.application }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ inputs.resource_group_name }}" \
+            -backend-config="storage_account_name=${{ inputs.storage_account_name }}" \
+            -backend-config="container_name=${{ inputs.container_name }}" \
+            -backend-config="key=${{ inputs.application }}.tfstate"
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${System.DefaultWorkingDirectory}/${{ inputs.working-directory }}/${{ inputs.application }}
+        run: |
+          terraform plan \
+            -var-file="${{ inputs.application }}.tfvars" \
+            -var="pve_api_token=${{ secrets.pve_api_token }}" \
+            -out=tfplan \
+            -detailed-exitcode
+
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${System.DefaultWorkingDirectory}/${{ inputs.working-directory }}/${{ inputs.application }}/tfplan
+          retention-days: 1
+
+  apply:
+    needs: plan
+    if: needs.plan.outputs.plan-exit-code == '2'
+    runs-on: [self-hosted, linux, commander-runner]
+    env:
+      ARM_CLIENT_ID: ${{ secrets.azure-client-id }}
+      ARM_TENANT_ID: ${{ secrets.azure-tenant-id }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.azure-subscription-id }}
+      ARM_USE_OIDC: true
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~> 1.15.0
+
+      - name: Azure Login
+        uses: Azure/login@v2
+        with:
+          client-id: ${{ secrets.azure-client-id }}
+          tenant-id: ${{ secrets.azure-tenant-id }}
+          subscription-id: ${{ secrets.azure-subscription-id }}
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${System.DefaultWorkingDirectory}/${{ inputs.working-directory }}/${{ inputs.application }}
+
+      - name: Terraform Init
+        working-directory: ${System.DefaultWorkingDirectory}/${{ inputs.working-directory }}/${{ inputs.application }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ inputs.resource_group_name }}" \
+            -backend-config="storage_account_name=${{ inputs.storage_account_name }}" \
+            -backend-config="container_name=${{ inputs.container_name }}" \
+            -backend-config="key=${{ inputs.application }}.tfstate"
+
+      - name: Terraform Apply
+        working-directory: ${System.DefaultWorkingDirectory}/${{ inputs.working-directory }}/${{ inputs.application }}
+        run: terraform apply tfplan
