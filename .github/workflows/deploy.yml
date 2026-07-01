@@ -1,7 +1,7 @@
 name: Deploy - Terraform - All
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       application:
         description: 'Application to deploy'
@@ -16,15 +16,16 @@ on:
         type: boolean
         default: false
 
+jobs:
   deploy-prod:
     if: inputs.deploy-prod == true
     uses: ./.github/workflows/deploy_template.yml
     with:
       application: ${{ inputs.application }}
       environment: Prod
-      resource_group_name: ${{ variables.RESOURCE_GROUP_NAME }}
-      storage_account_name: ${{ variables.STORAGE_ACCOUNT_NAME }}
-      container_name: ${{ variables.CONTAINER_NAME }}
+      resource_group_name: ${{ vars.RESOURCE_GROUP_NAME }}
+      storage_account_name: ${{ vars.STORAGE_ACCOUNT_NAME }}
+      container_name: ${{ vars.CONTAINER_NAME }}
       working-directory: ${{ (inputs.application == 'HVA01' || inputs.application == 'HVA02') && 'Hypervisors/Terraform' || 'Azure' }}
     secrets:
       azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
