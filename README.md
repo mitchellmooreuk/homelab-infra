@@ -8,7 +8,7 @@ The goal for this repository is to put most of my homelab configuration into Ter
 - Provision remote state and an azure key vault to retrieve secrets at runtime [✅]
 - Create a terraform modules repository to enable remote module storage including versioning of modules [✅]
 - Get all virtual machines into Terraform [✅]
-- Make this deployable via GitHub actions using CI/CD pipelines []
+- Make this deployable via GitHub actions using CI/CD pipelines [✅]
 - Provision scripts to backup configuration for switches, firewalls, access points etc []
 - Provision a VM with a cron job that goes away and grabs those backups every x amount of time, saves them to my NAS and remote storage of some kind []
 - Get a personal website up and running in Azure with CI/CD pipelines for this []
