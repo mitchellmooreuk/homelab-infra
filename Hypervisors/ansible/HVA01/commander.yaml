@@ -73,6 +73,7 @@
           - python3-pip
           - jq
           - tar
+          - unzip
         state: present
 
     - name: HashiCorp GPG key
