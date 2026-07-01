@@ -23,6 +23,8 @@ on:
         required: true
       azure-subscription-id:
         required: true
+      pve_api_token:
+        required: true
 
 permissions:
   id-token: write
