@@ -35,7 +35,7 @@ permissions:
 
 jobs:
   plan:
-    runs-on: [self-hosted, linux, commander-runner]
+    runs-on: [self-hosted, linux, X64, command-node]
     env:
       ARM_CLIENT_ID: ${{ secrets.azure-client-id }}
       ARM_TENANT_ID: ${{ secrets.azure-tenant-id }}
@@ -91,7 +91,7 @@ jobs:
   apply:
     needs: plan
     if: needs.plan.outputs.plan-exit-code == '2'
-    runs-on: [self-hosted, linux, commander-runner]
+    runs-on: [self-hosted, linux, X64, command-node]
     env:
       ARM_CLIENT_ID: ${{ secrets.azure-client-id }}
       ARM_TENANT_ID: ${{ secrets.azure-tenant-id }}
