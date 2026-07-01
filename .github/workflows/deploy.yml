@@ -19,6 +19,9 @@ on:
 jobs:
   deploy-prod:
     if: inputs.deploy-prod == true
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/deploy_template.yml
     with:
       application: ${{ inputs.application }}

@@ -16,6 +16,9 @@ on:
       container_name:
         required: true
         type: string
+      working-directory:
+        required: true
+        type: string
     secrets:
       azure-client-id:
         required: true
