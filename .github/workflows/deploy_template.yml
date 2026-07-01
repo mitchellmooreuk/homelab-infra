@@ -60,6 +60,12 @@ jobs:
           tenant-id: ${{ secrets.azure-tenant-id }}
           subscription-id: ${{ secrets.azure-subscription-id }}
 
+      - name: Debug inputs
+        run: |
+          echo "RG: ${{ inputs.resource_group_name }}"
+          echo "SA: ${{ inputs.storage_account_name }}"
+          echo "CN: ${{ inputs.container_name }}"
+          
       - name: Terraform Init
         working-directory: ${{ inputs.working-directory }}
         run: |
