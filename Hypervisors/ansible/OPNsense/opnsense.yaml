@@ -56,14 +56,32 @@
         url: "{{ api_url }}/interfaces/vlan_settings/search_item"
       register: vlan_devices
 
+    # The collection's interface_assignment module fails on 26.7, so this
+    # uses the API directly.
+    - name: Read existing interface assignments
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/search_item"
+      register: existing_assignments
+
     - name: Assign VLAN interfaces
-      oxlorg.opnsense.interface_assignment:
-        device: "{{ vlan_devices.json.rows | selectattr('tag', 'eq', item.tag | string) | map(attribute='vlanif') | first }}"
-        description: "{{ item.name }}"
-        enabled: true
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/add_item"
+        method: POST
+        body_format: json
+        body:
+          interface:
+            if: "{{ vlan_devices.json.rows | selectattr('tag', 'eq', item.tag | string) | map(attribute='vlanif') | first }}"
+            descr: "{{ item.name }}"
+            enable: '1'
+            type4: staticv4
+            ipaddr: "{{ item.address }}"
       loop: "{{ opnsense_vlans }}"
       loop_control:
         label: "{{ item.name }}"
+      when: item.name not in (existing_assignments.json.rows | map(attribute='descr') | list)
+      register: assign_result
+      changed_when: true
+      failed_when: assign_result.json.result | default('') != 'saved'
 
     - name: Read interface assignments
       ansible.builtin.uri:
@@ -73,7 +91,14 @@
     - name: Map interface names to identifiers
       ansible.builtin.set_fact:
         interface_ids: "{{ assignments.json.rows | items2dict(key_name='descr', value_name='identifier') }}"
-        interface_rows: "{{ assignments.json.rows | items2dict(key_name='identifier', value_name='ipaddr') }}"
+
+    - name: Read VLAN interface settings
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/get_item/{{ interface_ids[item.name] }}"
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: vlan_interfaces
 
     - name: Address VLAN interfaces
       ansible.builtin.uri:
@@ -87,11 +112,17 @@
             ipaddr: "{{ item.address }}"
       loop: "{{ opnsense_vlans }}"
       loop_control:
+        index_var: vlan_index
         label: "{{ item.name }}"
-      when: interface_rows[interface_ids[item.name]] | default('') != item.address
+      when: vlan_interfaces.results[vlan_index].json.interface.ipaddr | default('') != item.address
       register: address_result
       changed_when: true
       failed_when: address_result.json.result | default('') != 'saved'
+
+    - name: Read WAN settings
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/get_item/wan"
+      register: wan_interface
 
     - name: Configure WAN
       ansible.builtin.uri:
@@ -104,8 +135,8 @@
             blockpriv: '0'
             blockbogons: '0'
       when: >-
-        (assignments.json.rows | selectattr('identifier', 'eq', 'wan') | first).blockpriv | default('0') != '0' or
-        (assignments.json.rows | selectattr('identifier', 'eq', 'wan') | first).blockbogons | default('0') != '0'
+        wan_interface.json.interface.blockpriv | default('0') != '0' or
+        wan_interface.json.interface.blockbogons | default('0') != '0'
       register: wan_result
       changed_when: true
       failed_when: wan_result.json.result | default('') != 'saved'
@@ -117,7 +148,7 @@
         method: POST
         body_format: json
         body: {}
-      when: address_result is changed or wan_result is changed
+      when: assign_result is changed or address_result is changed or wan_result is changed
       changed_when: true
 
     - name: Create aliases
