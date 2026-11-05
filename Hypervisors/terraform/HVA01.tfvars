@@ -13,6 +13,14 @@ image_download = {
     url          = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
     file_name    = "noble-server-cloudimg-amd64.qcow2"
   }
+  "opnsense_26_7" = {
+    content_type            = "iso"
+    datastore_id            = "local"
+    node_name               = "proxmox"
+    url                     = "https://pkg.opnsense.org/releases/26.7/OPNsense-26.7-dvd-amd64.iso.bz2"
+    file_name               = "OPNsense-26.7-dvd-amd64.iso"
+    decompression_algorithm = "bz2"
+  }
 }
 
 virtual_machines = {
@@ -119,6 +127,48 @@ virtual_machines = {
         model       = "virtio"
         mac_address = "BC:24:11:9F:FE:44"
         vlan_id     = 25
+      }
+    ]
+  },
+  "opnsense" = {
+    vm_id          = 104
+    vm_description = "The VM for OPNsense. Staged on vmbr9, see docs/opnsense-cutover.md."
+    node_name      = "proxmox"
+    cpu_cores      = 2
+    memory_mb      = 3072
+    bios           = "ovmf"
+    on_boot        = false
+    started        = false
+
+    scsi_type = "virtio-scsi-single"
+
+    disks = [
+      {
+        datastore_id      = "local-lvm"
+        size_gb           = 20
+        interface         = "scsi0"
+        io_thread         = true
+        type              = "4m"
+        pre_enrolled_keys = false # OPNsense is not signed for Secure Boot.
+      }
+    ]
+
+    cd_roms = [
+      {
+        file_name = "local:iso/OPNsense-26.7-dvd-amd64.iso"
+        interface = "ide2"
+      }
+    ]
+
+    network_devices = [
+      {
+        bridge       = "vmbr1" # net0
+        model        = "virtio"
+        disconnected = true # Stays unplugged until cutover.
+      },
+      {
+        bridge = "vmbr9" # net1
+        model  = "virtio"
       }
     ]
   },
