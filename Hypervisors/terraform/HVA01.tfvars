@@ -68,7 +68,7 @@ virtual_machines = {
     vm_description = "The VM for the Unifi controller."
     node_name      = "proxmox"
     cpu_cores      = 2
-    memory_mb      = 2048
+    memory_mb      = 3096
     bios           = "ovmf"
 
     scsi_type = "virtio-scsi-single"
@@ -177,7 +177,7 @@ virtual_machines = {
     vm_description = "A Command VM that interfaces with other VMs on the network."
     node_name      = "proxmox"
     cpu_cores      = 2
-    memory_mb      = 1024
+    memory_mb      = 3072
     bios           = "seabios"
 
     scsi_type = "virtio-scsi-single"
