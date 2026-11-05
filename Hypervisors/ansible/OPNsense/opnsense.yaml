@@ -1,0 +1,212 @@
+---
+- name: Configure OPNsense
+  hosts: firewalls
+  gather_facts: false
+
+  vars_files:
+    - vars.yaml
+
+  vars:
+    api_url: "https://{{ opnsense_host }}:{{ opnsense_port }}/api"
+    api_key: "{{ lookup('ansible.builtin.ini', 'key', file=opnsense_credential_file | expanduser, type='properties') }}"
+    api_secret: "{{ lookup('ansible.builtin.ini', 'secret', file=opnsense_credential_file | expanduser, type='properties') }}"
+
+  module_defaults:
+    group/oxlorg.opnsense.all:
+      firewall: "{{ opnsense_host }}"
+      api_port: "{{ opnsense_port }}"
+      api_credential_file: "{{ opnsense_credential_file | expanduser }}"
+      ssl_verify: false
+    ansible.builtin.uri:
+      url_username: "{{ api_key }}"
+      url_password: "{{ api_secret }}"
+      force_basic_auth: true
+      validate_certs: false
+
+  tasks:
+    - name: Read global interface settings
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/settings/get"
+      register: interface_settings
+
+    - name: Check hardware offloads are disabled
+      ansible.builtin.assert:
+        that:
+          - interface_settings.json.settings.disablechecksumoffloading == '1'
+          - interface_settings.json.settings.disablesegmentationoffloading == '1'
+          - interface_settings.json.settings.disablelargereceiveoffloading == '1'
+        fail_msg: Disable checksum, TSO and LRO offloads under Interfaces > Settings.
+
+    - name: Disable Unbound
+      oxlorg.opnsense.unbound_general:
+        enabled: false
+
+    - name: Create VLANs
+      oxlorg.opnsense.interface_vlan:
+        description: "{{ item.name }}"
+        interface: "{{ opnsense_trunk_device }}"
+        vlan: "{{ item.tag }}"
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # OPNsense generates the device names, so they have to be looked up.
+    - name: Read VLAN devices
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/vlan_settings/search_item"
+      register: vlan_devices
+
+    - name: Assign VLAN interfaces
+      oxlorg.opnsense.interface_assignment:
+        device: "{{ vlan_devices.json.rows | selectattr('tag', 'eq', item.tag | string) | map(attribute='vlanif') | first }}"
+        description: "{{ item.name }}"
+        enabled: true
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Read interface assignments
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/search_item"
+      register: assignments
+
+    - name: Map interface names to identifiers
+      ansible.builtin.set_fact:
+        interface_ids: "{{ assignments.json.rows | items2dict(key_name='descr', value_name='identifier') }}"
+        interface_rows: "{{ assignments.json.rows | items2dict(key_name='identifier', value_name='ipaddr') }}"
+
+    - name: Address VLAN interfaces
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/set_item/{{ interface_ids[item.name] }}"
+        method: POST
+        body_format: json
+        body:
+          interface:
+            enable: '1'
+            type4: staticv4
+            ipaddr: "{{ item.address }}"
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: interface_rows[interface_ids[item.name]] | default('') != item.address
+      register: address_result
+      changed_when: true
+      failed_when: address_result.json.result | default('') != 'saved'
+
+    - name: Configure WAN
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/set_item/wan"
+        method: POST
+        body_format: json
+        body:
+          interface:
+            type4: dhcp
+            blockpriv: '0'
+            blockbogons: '0'
+      when: >-
+        (assignments.json.rows | selectattr('identifier', 'eq', 'wan') | first).blockpriv | default('0') != '0' or
+        (assignments.json.rows | selectattr('identifier', 'eq', 'wan') | first).blockbogons | default('0') != '0'
+      register: wan_result
+      changed_when: true
+      failed_when: wan_result.json.result | default('') != 'saved'
+
+    # Saved interface changes are discarded on reboot unless they're applied.
+    - name: Apply interface changes
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/assignment/reconfigure"
+        method: POST
+        body_format: json
+        body: {}
+      when: address_result is changed or wan_result is changed
+      changed_when: true
+
+    - name: Create aliases
+      oxlorg.opnsense.alias:
+        name: "{{ item.name }}"
+        type: "{{ item.type }}"
+        content: "{{ item.content }}"
+      loop: "{{ opnsense_aliases }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Reload aliases
+      oxlorg.opnsense.reload:
+        target: alias
+
+    - name: Create management rules
+      ansible.builtin.include_tasks: tasks/rules.yaml
+      vars:
+        interface_name: MANAGEMENT
+        interface_id: "{{ opnsense_lan.identifier }}"
+        rule_base: 1000
+        rules: "{{ opnsense_management_rules }}"
+
+    - name: Create VLAN rules
+      ansible.builtin.include_tasks: tasks/rules.yaml
+      vars:
+        interface_name: "{{ vlan.name }}"
+        interface_id: "{{ interface_ids[vlan.name] }}"
+        rule_base: "{{ 2000 + (vlan_index * 1000) }}"
+        rules: "{{ opnsense_client_rules }}"
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        loop_var: vlan
+        index_var: vlan_index
+        label: "{{ vlan.name }}"
+
+    - name: Reload rules
+      oxlorg.opnsense.reload:
+        target: rule
+
+    # DNS stays on AdGuard, so port 0 leaves dnsmasq serving DHCP only.
+    - name: Configure dnsmasq
+      oxlorg.opnsense.dnsmasq_general:
+        enabled: true
+        port: 0
+        interfaces: "{{ [opnsense_lan.identifier] + (opnsense_vlans | map(attribute='name') | map('extract', interface_ids) | list) }}"
+        dhcp_default_fw_rules: true
+        reload: false
+
+    - name: Create management DHCP range
+      oxlorg.opnsense.dnsmasq_range:
+        description: MANAGEMENT
+        interface: "{{ opnsense_lan.identifier }}"
+        start_addr: "{{ opnsense_lan.dhcp_start }}"
+        end_addr: "{{ opnsense_lan.dhcp_end }}"
+        domain: "{{ opnsense_domain }}"
+        reload: false
+
+    - name: Create VLAN DHCP ranges
+      oxlorg.opnsense.dnsmasq_range:
+        description: "{{ item.name }}"
+        interface: "{{ interface_ids[item.name] }}"
+        start_addr: "{{ item.dhcp_start }}"
+        end_addr: "{{ item.dhcp_end }}"
+        domain: "{{ opnsense_domain }}"
+        reload: false
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Hand out AdGuard on management
+      oxlorg.opnsense.dnsmasq_option:
+        description: DNS MANAGEMENT
+        option: 6
+        interface: "{{ opnsense_lan.identifier }}"
+        value: "{{ opnsense_dns_server }}"
+        reload: false
+
+    - name: Hand out AdGuard on VLANs
+      oxlorg.opnsense.dnsmasq_option:
+        description: "DNS {{ item.name }}"
+        option: 6
+        interface: "{{ interface_ids[item.name] }}"
+        value: "{{ opnsense_dns_server }}"
+        reload: false
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Reload dnsmasq
+      oxlorg.opnsense.reload:
+        target: dnsmasq

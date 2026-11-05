@@ -1,0 +1,22 @@
+---
+- name: "Create rules for {{ interface_name }}"
+  oxlorg.opnsense.rule:
+    description: "{{ interface_name }} - {{ item.description }}"
+    match_fields:
+      - description
+    sequence: "{{ (rule_base | int) + loop_index + 1 }}"
+    action: "{{ item.action }}"
+    interface:
+      - "{{ interface_id }}"
+    ip_protocol: inet
+    protocol: "{{ item.protocol | default('any') }}"
+    icmp_type: "{{ item.icmp_type | default(omit) }}"
+    source_net: "{{ interface_id }}"
+    destination_net: "{{ item.destination_net }}"
+    destination_port: "{{ item.destination_port | default(omit) }}"
+    log: "{{ item.log }}"
+    reload: false
+  loop: "{{ rules }}"
+  loop_control:
+    index_var: loop_index
+    label: "{{ item.description }}"
