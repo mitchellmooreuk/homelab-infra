@@ -1,6 +1,6 @@
 ---
 # The collection's rule module reads /firewall/filter/get for every rule,
-# which returns a truncated response on 26.7, so this uses search_rule.
+# which is large and slow, so this uses search_rule filtered by interface.
 - name: "Read rules for {{ interface_name }}"
   ansible.builtin.uri:
     url: "{{ api_url }}/firewall/filter/search_rule?interface={{ interface_id }}"

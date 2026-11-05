@@ -79,6 +79,15 @@ In the GUI, set the following by hand:
 | Interface name | Rename LAN to `MANAGEMENT` |
 | Administration | HTTPS only, HTTP redirect disabled, SSH disabled |
 
+**Disable kTLS on 26.7.** A kernel bug on QEMU VMs corrupts HTTPS responses over about 64 KB, which breaks the API ([opnsense/core#10557](https://github.com/opnsense/core/issues/10557)). Add the tunable `kern.ipc.tls.enable` with value `0` under System > Settings > Tunables, and apply it. To apply it straight away, also run this from console option `8`:
+
+```sh
+sysctl kern.ipc.tls.enable=0
+configctl webgui restart
+```
+
+26.7.1 and later disable kTLS for the web GUI themselves, but the tunable is harmless, and can be removed once you've upgraded.
+
 Create a dedicated user with an API key under System > Access > Users, and copy the key file to `~/.opnsense/api.txt` on commander.
 
 ## 4. Apply the configuration
