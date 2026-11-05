@@ -28,7 +28,7 @@ virtual_machines = {
     vm_id          = 100
     vm_description = "The VM for PfSense."
     node_name      = "proxmox"
-    cpu_cores      = 2
+    cpu_cores      = 3
     memory_mb      = 6144
     bios           = "ovmf"
 
@@ -134,7 +134,7 @@ virtual_machines = {
     vm_id          = 104
     vm_description = "The VM for OPNsense. Staged on vmbr9, see docs/opnsense-cutover.md."
     node_name      = "proxmox"
-    cpu_cores      = 2
+    cpu_cores      = 3
     memory_mb      = 6144
     bios           = "ovmf"
     on_boot        = false
