@@ -185,9 +185,13 @@
         index_var: vlan_index
         label: "{{ vlan.name }}"
 
-    - name: Reload rules
-      oxlorg.opnsense.reload:
-        target: rule
+    - name: Apply rules
+      ansible.builtin.uri:
+        url: "{{ api_url }}/firewall/filter/apply"
+        method: POST
+        body_format: json
+        body: {}
+      changed_when: true
 
     # DNS stays on AdGuard, so port 0 leaves dnsmasq serving DHCP only.
     - name: Configure dnsmasq
