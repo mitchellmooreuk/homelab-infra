@@ -50,7 +50,7 @@ OPNsense has no cloud-init, so this part is manual, in the Proxmox console for V
    rm /tmp/opnsense.iso.bz2
    ```
 2. Start the VM. Log in as `installer` with password `opnsense`, and install to the disk.
-3. Shut down, detach the ISO from `ide2`, and start the VM again.
+3. Shut down, then boot from the disk with `qm set 104 --boot order=scsi0` and start the VM again. Leave the ISO attached, as detaching it would show up as Terraform drift.
 4. Use console option `1) Assign interfaces`:
    - Say yes to VLANs, and create tag `25` on `vtnet1`.
    - WAN: `vtnet0`. LAN: the new VLAN device.
