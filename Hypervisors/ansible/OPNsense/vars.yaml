@@ -11,6 +11,7 @@ opnsense_domain: slug.internal
 
 # The LAN interface is created at the console, as it carries the API itself.
 opnsense_lan:
+  name: MANAGEMENT
   identifier: lan
   dhcp_start: 10.25.25.100
   dhcp_end: 10.25.25.200
