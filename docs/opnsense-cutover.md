@@ -57,10 +57,14 @@ OPNsense has no cloud-init, so this part is manual, in the Proxmox console for V
 5. Use console option `2) Set interface IP address` on LAN: `10.25.25.1/24`, no upstream gateway, no DHCP. Stay on HTTPS.
 6. Change the root password with console option `3`, and store it in 1Password.
 
-Then open the tunnel from a machine on the management network, and browse to `https://127.0.0.1:8443`:
+Then open the tunnel through commander, and browse to `https://127.0.0.1:8443`:
 
 ```bash
-ssh -N -L 8443:127.0.0.1:8443 root@10.25.25.250
+# On your own machine:
+ssh -L 8443:127.0.0.1:8443 ubuntu@10.25.25.7
+
+# In that session on commander:
+ssh -i ~/.ssh/id_rsa_terraform -N -L 8443:127.0.0.1:8443 root@10.25.25.250
 ```
 
 If the GUI reports a DNS rebind or referrer error, set the option to disable those checks under System > Settings > Administration, then re-enable them after cutover.
