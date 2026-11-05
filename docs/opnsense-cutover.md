@@ -32,10 +32,19 @@ Confirm VM 100's sizing with `qm config 100`, and that VM ID 104 is free. Then, 
 ```bash
 cd Hypervisors/terraform
 ./terraform-plan.ps1 -nodeName HVA01 -keyVaultName <vault> -resourceGroupName <rg> -storageAccountName <storage>
+rm tfplan
+TOKEN=$(az keyvault secret show --name HVA01-api-token --vault-name <vault> --query value -o tsv)
+terraform plan -var-file=HVA01.tfvars -var="pve_api_token=$TOKEN" \
+  -target='module.download_image["opnsense_26_7"]' \
+  -target='module.virtual_machines["opnsense"]' \
+  -out=tfplan
+unset TOKEN
 terraform apply tfplan
 ```
 
-**Stop if the plan shows anything other than the new `opnsense` VM and its ISO.** The VM is created powered off, with `net0` disconnected.
+The script is only there to initialise the backend, so its full plan is deleted. **Do not apply a full plan yet.** It would remove the `initialization` block from `pfsense`, `adguard` and `unifi`, which is being handled separately.
+
+The targeted plan should show `3 to add, 0 to change, 1 to destroy`: the OPNsense ISO, the OPNsense VM, and a replacement of the Ubuntu image. **Stop if it shows anything else.** The VM is created powered off, with `net0` disconnected. Check the ISO attached with `qm config 104`.
 
 ## 3. Bootstrap
 
@@ -150,6 +159,8 @@ pfSense itself hasn't changed, so this restores the previous state. Devices may 
 ## 7. After cutover
 
 **Do not run `terraform apply` until `HVA01.tfvars` has been updated.** The file still describes staging, and `pfsense` defaults to `started = true`, so an apply could power pfSense back on while OPNsense holds its WAN MAC.
+
+The `initialization` mismatch on `pfsense`, `adguard` and `unifi` also has to be resolved before a full apply.
 
 1. Update `HVA01.tfvars`, then check the plan shows no changes to these VMs beyond matching reality:
    ```hcl
