@@ -194,18 +194,20 @@
       changed_when: true
 
     # DNS stays on AdGuard, so port 0 leaves dnsmasq serving DHCP only.
+    # The dnsmasq modules take interface names, not identifiers, and this
+    # one silently ignores any it can't find.
     - name: Configure dnsmasq
       oxlorg.opnsense.dnsmasq_general:
         enabled: true
         port: 0
-        interfaces: "{{ [opnsense_lan.identifier] + (opnsense_vlans | map(attribute='name') | map('extract', interface_ids) | list) }}"
+        interfaces: "{{ [opnsense_lan.name] + (opnsense_vlans | map(attribute='name') | list) }}"
         dhcp_default_fw_rules: true
         reload: false
 
     - name: Create management DHCP range
       oxlorg.opnsense.dnsmasq_range:
-        description: MANAGEMENT
-        interface: "{{ opnsense_lan.identifier }}"
+        description: "{{ opnsense_lan.name }}"
+        interface: "{{ opnsense_lan.name }}"
         start_addr: "{{ opnsense_lan.dhcp_start }}"
         end_addr: "{{ opnsense_lan.dhcp_end }}"
         domain: "{{ opnsense_domain }}"
@@ -214,7 +216,7 @@
     - name: Create VLAN DHCP ranges
       oxlorg.opnsense.dnsmasq_range:
         description: "{{ item.name }}"
-        interface: "{{ interface_ids[item.name] }}"
+        interface: "{{ item.name }}"
         start_addr: "{{ item.dhcp_start }}"
         end_addr: "{{ item.dhcp_end }}"
         domain: "{{ opnsense_domain }}"
@@ -225,9 +227,9 @@
 
     - name: Hand out AdGuard on management
       oxlorg.opnsense.dnsmasq_option:
-        description: DNS MANAGEMENT
+        description: "DNS {{ opnsense_lan.name }}"
         option: 6
-        interface: "{{ opnsense_lan.identifier }}"
+        interface: "{{ opnsense_lan.name }}"
         value: "{{ opnsense_dns_server }}"
         reload: false
 
@@ -235,7 +237,7 @@
       oxlorg.opnsense.dnsmasq_option:
         description: "DNS {{ item.name }}"
         option: 6
-        interface: "{{ interface_ids[item.name] }}"
+        interface: "{{ item.name }}"
         value: "{{ opnsense_dns_server }}"
         reload: false
       loop: "{{ opnsense_vlans }}"
