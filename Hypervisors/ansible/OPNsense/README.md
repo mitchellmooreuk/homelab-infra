@@ -8,9 +8,13 @@ Run these from commander, which needs SSH access to HVA01.
 
 ### 1. Install dependencies
 ```bash
-sudo apt install -y python3-httpx
+sudo apt install -y python3-venv
+python3 -m venv ~/.venvs/opnsense
+~/.venvs/opnsense/bin/pip install httpx==0.28.1 h11==0.16.0
 ansible-galaxy collection install -r requirements.yml
 ```
+The venv is needed because the collection failed on larger API responses with Ubuntu 24.04's `python3-httpx` packages. `inventory.ini` points at it.
+
 The collection is pinned to a commit, because no tagged release supports OPNsense 26.7 yet. Each release only supports its matching OPNsense version, so update this pin whenever OPNsense is upgraded.
 
 ### 2. Add the API key
