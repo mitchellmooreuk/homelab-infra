@@ -20,6 +20,7 @@ image_download = {
     url                     = "https://pkg.opnsense.org/releases/26.7/OPNsense-26.7-dvd-amd64.iso.bz2"
     file_name               = "OPNsense-26.7-dvd-amd64.iso"
     decompression_algorithm = "bz2"
+    overwrite               = false # The URL only reports the compressed size.
   }
 }
 
