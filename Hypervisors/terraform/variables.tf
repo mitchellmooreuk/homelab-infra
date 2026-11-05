@@ -17,6 +17,7 @@ variable "image_download" {
     file_name    = optional(string)
 
     decompression_algorithm = optional(string) # Can be gz, lzo, zst or bz2.
+    overwrite               = optional(bool, true)
   }))
   description = "(Optional) A map of images to be downloaded."
   default     = {}
