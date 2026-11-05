@@ -9,12 +9,11 @@
     namespace_ip: 10.25.25.2/24
 
   tasks:
+    # No cache update, as unrelated repository errors on HVA01 would fail it.
     - name: Install socat
       ansible.builtin.apt:
         name: socat
         state: present
-        update_cache: true
-        cache_valid_time: 3600
 
     - name: Deploy vmbr9 staging bridge
       ansible.builtin.copy:
