@@ -8,7 +8,7 @@ Run these from commander, which needs SSH access to HVA01.
 
 ### 1. Install dependencies
 ```bash
-pip install httpx
+sudo apt install -y python3-httpx
 ansible-galaxy collection install -r requirements.yml
 ```
 The collection is pinned to a commit, because no tagged release supports OPNsense 26.7 yet. Each release only supports its matching OPNsense version, so update this pin whenever OPNsense is upgraded.
