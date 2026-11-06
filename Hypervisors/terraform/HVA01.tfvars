@@ -27,11 +27,13 @@ image_download = {
 virtual_machines = {
   "pfsense" = {
     vm_id          = 100
-    vm_description = "The VM for PfSense."
+    vm_description = "The VM for PfSense. Replaced by OPNsense, kept powered off for rollback."
     node_name      = "proxmox"
     cpu_cores      = 3
     memory_mb      = 6144
     bios           = "ovmf"
+    on_boot        = false
+    started        = false
 
     scsi_type = "virtio-scsi-single"
 
@@ -133,13 +135,11 @@ virtual_machines = {
   },
   "opnsense" = {
     vm_id          = 104
-    vm_description = "The VM for OPNsense. Staged on vmbr9, see docs/opnsense-cutover.md."
+    vm_description = "The VM for OPNsense."
     node_name      = "proxmox"
     cpu_cores      = 3
     memory_mb      = 6144
     bios           = "ovmf"
-    on_boot        = false
-    started        = false
 
     scsi_type = "virtio-scsi-single"
 
@@ -163,13 +163,14 @@ virtual_machines = {
 
     network_devices = [
       {
-        bridge       = "vmbr1" # net0
-        model        = "virtio"
-        disconnected = true # Stays unplugged until cutover.
+        bridge      = "vmbr1" # net0
+        model       = "virtio"
+        mac_address = "BC:24:11:93:CD:48"
       },
       {
-        bridge = "vmbr9" # net1
-        model  = "virtio"
+        bridge      = "vmbr0" # net1
+        model       = "virtio"
+        mac_address = "BC:24:11:09:3B:3B"
       }
     ]
   },
