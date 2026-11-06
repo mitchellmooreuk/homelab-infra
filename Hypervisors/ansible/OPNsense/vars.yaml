@@ -1,0 +1,98 @@
+---
+# Staging reaches OPNsense through the SSH tunnel to HVA01, see README.md.
+# Override with -e "opnsense_host=10.25.25.1 opnsense_port=443" after cutover.
+opnsense_host: 127.0.0.1
+opnsense_port: 8443
+opnsense_credential_file: ~/.opnsense/api.txt
+
+opnsense_trunk_device: vtnet1
+opnsense_dns_server: 10.25.25.4
+opnsense_domain: slug.internal
+
+# The LAN interface is created at the console, as it carries the API itself.
+opnsense_lan:
+  name: MANAGEMENT
+  identifier: lan
+  dhcp_start: 10.25.25.100
+  dhcp_end: 10.25.25.200
+
+opnsense_vlans:
+  - name: LAN_VLAN
+    tag: 10
+    address: 10.25.10.1/24
+    dhcp_start: 10.25.10.100
+    dhcp_end: 10.25.10.200
+  - name: IOT_VLAN
+    tag: 20
+    address: 10.25.20.1/24
+    dhcp_start: 10.25.20.100
+    dhcp_end: 10.25.20.200
+  - name: VMVLAN
+    tag: 26
+    address: 10.25.26.1/24
+    dhcp_start: 10.25.26.100
+    dhcp_end: 10.25.26.199
+
+opnsense_aliases:
+  - name: RFC1918
+    type: network
+    content:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+  - name: AdGuard
+    type: host
+    content:
+      - 10.25.25.4
+  - name: FW_Admin_Ports
+    type: port
+    content:
+      - 443
+
+# First match wins. "net" is replaced with the interface's own network.
+opnsense_client_rules:
+  - description: Allow DNS to AdGuard
+    action: pass
+    protocol: TCP/UDP
+    destination_net: AdGuard
+    destination_port: 53
+    log: false
+  - description: Block access to the firewall
+    action: block
+    destination_net: (self)
+    log: true
+  - description: Block access to internal networks
+    action: block
+    destination_net: RFC1918
+    log: true
+  - description: Allow internet
+    action: pass
+    destination_net: any
+    log: false
+
+opnsense_management_rules:
+  - description: Allow firewall admin
+    action: pass
+    protocol: TCP
+    destination_net: (self)
+    destination_port: FW_Admin_Ports
+    log: false
+  - description: Allow ping to the firewall
+    action: pass
+    protocol: ICMP
+    icmp_type:
+      - echoreq
+    destination_net: (self)
+    log: false
+  - description: Block access to the firewall
+    action: block
+    destination_net: (self)
+    log: true
+  - description: Allow internal networks
+    action: pass
+    destination_net: RFC1918
+    log: true
+  - description: Allow internet
+    action: pass
+    destination_net: any
+    log: false

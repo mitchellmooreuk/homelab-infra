@@ -15,6 +15,9 @@ variable "image_download" {
     node_name    = string
     url          = string
     file_name    = optional(string)
+
+    decompression_algorithm = optional(string) # Can be gz, lzo, zst or bz2.
+    overwrite               = optional(bool, true)
   }))
   description = "(Optional) A map of images to be downloaded."
   default     = {}
@@ -29,6 +32,8 @@ variable "virtual_machines" {
     cpu_type       = optional(string, "x86-64-v2-AES") # Recommended to use x86-64-v2-AES as per provider docs.
     memory_mb      = number
     bios           = optional(string) # Can be either "seabios" or "ovmf".
+    on_boot        = optional(bool, true)
+    started        = optional(bool, true)
 
     scsi_type = optional(string) # Can be either "virtio-scsi-single" or "virtio-scsi-pci". Defaults to virtio-scsi-pci.
 
@@ -49,10 +54,11 @@ variable "virtual_machines" {
     })), [])
 
     network_devices = list(object({
-      bridge      = string
-      model       = string
-      vlan_id     = optional(number)
-      mac_address = optional(string)
+      bridge       = string
+      model        = string
+      vlan_id      = optional(number)
+      mac_address  = optional(string)
+      disconnected = optional(bool, false)
     }))
 
     cloud_init = optional(object({

@@ -1,0 +1,123 @@
+---
+- name: Configure OPNsense Staging Network
+  hosts: proxmox_nodes
+  become: true
+
+  vars:
+    relay_port: 8443
+    opnsense_lan_ip: 10.25.25.1
+    namespace_ip: 10.25.25.2/24
+
+  tasks:
+    # No cache update, as unrelated repository errors on HVA01 would fail it.
+    - name: Install socat
+      ansible.builtin.apt:
+        name: socat
+        state: present
+
+    - name: Deploy vmbr9 staging bridge
+      ansible.builtin.copy:
+        dest: /etc/network/interfaces.d/vmbr9
+        mode: '0644'
+        content: |
+          # Isolated OPNsense staging bridge. Removed by staging-teardown.yaml.
+          auto vmbr9
+          iface vmbr9 inet manual
+          	bridge-ports none
+          	bridge-stp off
+          	bridge-fd 0
+          	bridge-vlan-aware yes
+          	bridge-vids 2-4094
+      notify: Apply Network Changes
+
+    - name: Apply vmbr9 before the namespace needs it
+      ansible.builtin.meta: flush_handlers
+
+    - name: Deploy namespace script
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/opnsense-staging-ns
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          # Joins a network namespace to VLAN 25 on vmbr9, so HVA01 can reach
+          # OPNsense without its own routes to 10.25.25.0/24 being affected.
+          set -e
+          ip netns del opnstage 2>/dev/null || true
+          ip netns add opnstage
+          ip link add veth-opn type veth peer name veth-opn-ns
+          ip link set veth-opn-ns netns opnstage
+          ip link set veth-opn master vmbr9
+          bridge vlan add dev veth-opn vid 25 pvid untagged
+          bridge vlan del dev veth-opn vid 1
+          ip link set veth-opn up
+          ip netns exec opnstage ip link set lo up
+          ip netns exec opnstage ip addr add {{ namespace_ip }} dev veth-opn-ns
+          ip netns exec opnstage ip link set veth-opn-ns up
+
+    - name: Deploy relay script
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/opnsense-staging-relay
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          exec ip netns exec opnstage socat STDIO TCP:{{ opnsense_lan_ip }}:443
+
+    - name: Deploy namespace service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/opnsense-staging-ns.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=OPNsense staging network namespace
+          After=networking.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=true
+          ExecStart=/usr/local/sbin/opnsense-staging-ns
+          ExecStop=/usr/sbin/ip netns del opnstage
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Staging Services
+
+    - name: Deploy relay service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/opnsense-staging-relay.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Relay from HVA01 loopback to the OPNsense staging LAN
+          Requires=opnsense-staging-ns.service
+          After=opnsense-staging-ns.service
+
+          [Service]
+          ExecStart=/usr/bin/socat TCP-LISTEN:{{ relay_port }},bind=127.0.0.1,fork,reuseaddr EXEC:/usr/local/sbin/opnsense-staging-relay
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Staging Services
+
+    - name: Enable staging services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+        daemon_reload: true
+      loop:
+        - opnsense-staging-ns
+        - opnsense-staging-relay
+
+  handlers:
+    - name: Apply Network Changes
+      ansible.builtin.command: ifreload -a
+
+    - name: Restart Staging Services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: restarted
+        daemon_reload: true
+      loop:
+        - opnsense-staging-ns
+        - opnsense-staging-relay

@@ -1,0 +1,42 @@
+---
+# The collection's rule module reads /firewall/filter/get for every rule,
+# which is large and slow, so this uses search_rule filtered by interface.
+- name: "Read rules for {{ interface_name }}"
+  ansible.builtin.uri:
+    url: "{{ api_url }}/firewall/filter/search_rule?interface={{ interface_id }}"
+  register: existing_rules
+
+- name: "Manage rules for {{ interface_name }}"
+  vars:
+    rule_name: "{{ interface_name }} - {{ item.description }}"
+    rule_matches: "{{ existing_rules.json.rows | selectattr('description', 'defined') | selectattr('description', 'eq', rule_name) | list }}"
+    rule_body:
+      enabled: '1'
+      description: "{{ rule_name }}"
+      sequence: "{{ ((rule_base | int) + loop_index + 1) | string }}"
+      action: "{{ item.action }}"
+      quick: '1'
+      interface: "{{ interface_id }}"
+      direction: in
+      ipprotocol: inet
+      protocol: "{{ item.protocol | default('any') }}"
+      icmptype: "{{ item.icmp_type | default([]) | join(',') }}"
+      source_net: "{{ interface_id }}"
+      destination_net: "{{ item.destination_net }}"
+      destination_port: "{{ item.destination_port | default('') | string }}"
+      log: "{{ '1' if item.log else '0' }}"
+  ansible.builtin.uri:
+    url: >-
+      {{ api_url }}/firewall/filter/{{ 'set_rule/' ~ (rule_matches | first).uuid if rule_matches else 'add_rule' }}
+    method: POST
+    body_format: json
+    body:
+      rule: "{{ rule_body }}"
+  loop: "{{ rules }}"
+  loop_control:
+    index_var: loop_index
+    label: "{{ item.description }}"
+  when: not rule_matches or (rule_matches | first | combine(rule_body)) != (rule_matches | first)
+  register: rule_result
+  changed_when: true
+  failed_when: rule_result.json.result | default('') != 'saved'

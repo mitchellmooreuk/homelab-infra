@@ -1,0 +1,40 @@
+---
+- name: Remove OPNsense Staging Network
+  hosts: proxmox_nodes
+  become: true
+
+  tasks:
+    - name: Check nothing still uses vmbr9
+      ansible.builtin.shell: grep -l 'bridge=vmbr9' /etc/pve/qemu-server/*.conf
+      register: vmbr9_users
+      changed_when: false
+      failed_when: vmbr9_users.stdout != ''
+
+    - name: Stop and disable staging services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+      loop:
+        - opnsense-staging-relay
+        - opnsense-staging-ns
+      failed_when: false
+
+    - name: Bring down vmbr9
+      ansible.builtin.command: ifdown vmbr9
+      failed_when: false
+
+    - name: Remove staging files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/opnsense-staging-relay.service
+        - /etc/systemd/system/opnsense-staging-ns.service
+        - /usr/local/sbin/opnsense-staging-relay
+        - /usr/local/sbin/opnsense-staging-ns
+        - /etc/network/interfaces.d/vmbr9
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
