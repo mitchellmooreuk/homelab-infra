@@ -107,7 +107,9 @@ For each interface under Interfaces, set these, click Save, then Apply changes:
 
 Then re-run the playbook.
 
-Check Firewall > Rules afterwards. Delete any default allow rules left on LAN that the playbook didn't create, and confirm Firewall > NAT shows automatic outbound mode with no manual rules.
+Check Firewall > Rules afterwards. A fresh install adds `Default allow LAN to any rule` and `Default allow LAN IPv6 to any rule`, and they're listed above the playbook's rules, so they have to go. On 26.7 they can't be edited individually, so use the legacy rule removal on the firewall Migration page (`/ui/firewall/migration`). It should report 2 legacy rules. Leave legacy outbound NAT alone. Your access isn't affected, as `MANAGEMENT - Allow firewall admin` and the anti-lockout rule cover the GUI.
+
+Confirm Firewall > NAT > Source NAT shows automatic mode, with no manual rules.
 
 Run the playbook a second time. It should report almost no changes. If it keeps changing the same tasks, note them before going further.
 
