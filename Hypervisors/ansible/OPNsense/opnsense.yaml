@@ -100,6 +100,8 @@
         label: "{{ item.name }}"
       register: vlan_interfaces
 
+    # Interface settings only joined this API in 26.7.6. Older versions accept
+    # them and discard them, so they're set in the GUI there, see the cutover doc.
     - name: Address VLAN interfaces
       ansible.builtin.uri:
         url: "{{ api_url }}/interfaces/assignment/set_item/{{ interface_ids[item.name] }}"
@@ -114,7 +116,9 @@
       loop_control:
         index_var: vlan_index
         label: "{{ item.name }}"
-      when: vlan_interfaces.results[vlan_index].json.interface.ipaddr | default('') != item.address
+      when:
+        - "'ipaddr' in vlan_interfaces.results[vlan_index].json.interface"
+        - vlan_interfaces.results[vlan_index].json.interface.ipaddr != item.address
       register: address_result
       changed_when: true
       failed_when: address_result.json.result | default('') != 'saved'
@@ -134,9 +138,9 @@
             type4: dhcp
             blockpriv: '0'
             blockbogons: '0'
-      when: >-
-        wan_interface.json.interface.blockpriv | default('0') != '0' or
-        wan_interface.json.interface.blockbogons | default('0') != '0'
+      when:
+        - "'blockpriv' in wan_interface.json.interface"
+        - wan_interface.json.interface.blockpriv != '0' or wan_interface.json.interface.blockbogons != '0'
       register: wan_result
       changed_when: true
       failed_when: wan_result.json.result | default('') != 'saved'
@@ -150,6 +154,23 @@
         body: {}
       when: assign_result is changed or address_result is changed or wan_result is changed
       changed_when: true
+
+    - name: Read interface status
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/overview/interfaces_info"
+      register: interface_status
+
+    - name: Check VLAN interfaces are up
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.address in (interface_status.json.rows | selectattr('identifier', 'eq', interface_ids[item.name])
+            | map(attribute='addr4') | list)
+        fail_msg: "{{ item.name }} has no {{ item.address }}. On OPNsense older than 26.7.6, set it in the GUI."
+        quiet: true
+      loop: "{{ opnsense_vlans }}"
+      loop_control:
+        label: "{{ item.name }}"
 
     - name: Create aliases
       oxlorg.opnsense.alias:

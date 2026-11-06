@@ -37,4 +37,4 @@ ansible-playbook -i inventory.ini opnsense.yaml --diff -e "opnsense_host=10.25.2
 ```
 
 ## What isn't covered
-Hostname, domain, system DNS, timezone, SSH and the HTTP redirect have no API or module to manage them, so they're set by hand. Outbound NAT stays in its default automatic mode, so it needs no configuration. Both are covered in the cutover doc.
+Hostname, domain, system DNS, timezone, SSH and the HTTP redirect have no API or module to manage them, so they're set by hand. So are interface addresses and WAN flags on OPNsense older than 26.7.6. Outbound NAT stays in its default automatic mode, so it needs no configuration. Both are covered in the cutover doc.
