@@ -94,6 +94,19 @@ Create a dedicated user with an API key under System > Access > Users, and copy 
 
 Follow [the OPNsense README](../Hypervisors/ansible/OPNsense/README.md).
 
+**On OPNsense older than 26.7.6, the playbook can't set interface addresses or WAN flags,** because the API doesn't have them yet. It stops at `Check VLAN interfaces are up` until you set them by hand, as base 26.7 can't update while the WAN is disconnected.
+
+For each interface under Interfaces, set these, click Save, then Apply changes:
+
+| Interface | Settings |
+|---|---|
+| `LAN_VLAN` | Enable, IPv4 Static, `10.25.10.1/24` |
+| `IOT_VLAN` | Enable, IPv4 Static, `10.25.20.1/24` |
+| `VMVLAN` | Enable, IPv4 Static, `10.25.26.1/24` |
+| `WAN` | IPv4 DHCP, block private and bogon networks off |
+
+Then re-run the playbook.
+
 Check Firewall > Rules afterwards. Delete any default allow rules left on LAN that the playbook didn't create, and confirm Firewall > NAT shows automatic outbound mode with no manual rules.
 
 Run the playbook a second time. It should report almost no changes. If it keeps changing the same tasks, note them before going further.
