@@ -13,6 +13,15 @@ image_download = {
     url          = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
     file_name    = "noble-server-cloudimg-amd64.qcow2"
   }
+  "opnsense_26_7" = {
+    content_type            = "iso"
+    datastore_id            = "local"
+    node_name               = "proxmox"
+    url                     = "https://pkg.opnsense.org/releases/26.7/OPNsense-26.7-dvd-amd64.iso.bz2"
+    file_name               = "OPNsense-26.7-dvd-amd64.iso"
+    decompression_algorithm = "bz2"
+    overwrite               = false # The URL only reports the compressed size.
+  }
 }
 
 virtual_machines = {
@@ -20,8 +29,8 @@ virtual_machines = {
     vm_id          = 100
     vm_description = "The VM for PfSense."
     node_name      = "proxmox"
-    cpu_cores      = 2
-    memory_mb      = 3072
+    cpu_cores      = 3
+    memory_mb      = 6144
     bios           = "ovmf"
 
     scsi_type = "virtio-scsi-single"
@@ -60,7 +69,7 @@ virtual_machines = {
     vm_description = "The VM for the Unifi controller."
     node_name      = "proxmox"
     cpu_cores      = 2
-    memory_mb      = 2048
+    memory_mb      = 3096
     bios           = "ovmf"
 
     scsi_type = "virtio-scsi-single"
@@ -122,12 +131,54 @@ virtual_machines = {
       }
     ]
   },
+  "opnsense" = {
+    vm_id          = 104
+    vm_description = "The VM for OPNsense. Staged on vmbr9, see docs/opnsense-cutover.md."
+    node_name      = "proxmox"
+    cpu_cores      = 3
+    memory_mb      = 6144
+    bios           = "ovmf"
+    on_boot        = false
+    started        = false
+
+    scsi_type = "virtio-scsi-single"
+
+    disks = [
+      {
+        datastore_id      = "local-lvm"
+        size_gb           = 20
+        interface         = "scsi0"
+        io_thread         = true
+        type              = "4m"
+        pre_enrolled_keys = false # OPNsense is not signed for Secure Boot.
+      }
+    ]
+
+    cd_roms = [
+      {
+        file_name = "local:iso/OPNsense-26.7-dvd-amd64.iso"
+        interface = "ide2"
+      }
+    ]
+
+    network_devices = [
+      {
+        bridge       = "vmbr1" # net0
+        model        = "virtio"
+        disconnected = true # Stays unplugged until cutover.
+      },
+      {
+        bridge = "vmbr9" # net1
+        model  = "virtio"
+      }
+    ]
+  },
   "commander" = {
     vm_id          = 103
     vm_description = "A Command VM that interfaces with other VMs on the network."
     node_name      = "proxmox"
     cpu_cores      = 2
-    memory_mb      = 1024
+    memory_mb      = 3072
     bios           = "seabios"
 
     scsi_type = "virtio-scsi-single"

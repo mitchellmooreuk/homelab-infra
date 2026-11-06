@@ -1,0 +1,7 @@
+---
+# Pinned to a commit, as no tagged release supports OPNsense 26.7 yet.
+# Each collection release only supports the matching OPNsense version.
+collections:
+  - name: https://github.com/O-X-L/ansible-opnsense.git
+    type: git
+    version: 7b06551c93302b4842d445e7052f095d7bb2926f
