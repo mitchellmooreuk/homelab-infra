@@ -5,6 +5,9 @@
 *.tfstate.backup
 .terraform.lock.hcl
 tfplan
+*.md
+!README.md
+!pull_request_template.md
 
 # Credentials & Private Keys
 *.pem
