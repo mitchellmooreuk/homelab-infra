@@ -32,6 +32,16 @@ opnsense_vlans:
     address: 10.25.26.1/24
     dhcp_start: 10.25.26.100
     dhcp_end: 10.25.26.199
+  # Static addressing only, so no DHCP keys. Always append here: rule
+  # sequences come from list position.
+  - name: DMZ
+    tag: 11
+    address: 10.25.11.1/24
+    rules: "{{ opnsense_dmz_rules }}"
+  - name: K8S
+    tag: 27
+    address: 10.25.27.1/24
+    rules: "{{ opnsense_k8s_rules }}"
 
 opnsense_aliases:
   - name: RFC1918
@@ -48,6 +58,33 @@ opnsense_aliases:
     type: port
     content:
       - 443
+  - name: Commander
+    type: host
+    content:
+      - 10.25.25.7
+  - name: DMZ_Node
+    type: host
+    content:
+      - 10.25.11.2
+  - name: K8s_Admin_Ports
+    type: port
+    content:
+      - 22
+      - 6443
+  - name: Public_DNS
+    type: host
+    content:
+      - 1.1.1.1
+      - 1.0.0.1
+  - name: Public_NTP
+    type: host
+    content:
+      - time.cloudflare.com
+  - name: Cloudflare_Tunnel
+    type: host
+    content:
+      - region1.v2.argotunnel.com
+      - region2.v2.argotunnel.com
 
 # First match wins. "net" is replaced with the interface's own network.
 opnsense_client_rules:
@@ -88,6 +125,28 @@ opnsense_management_rules:
     action: block
     destination_net: (self)
     log: true
+  - description: Allow commander to the DMZ node
+    action: pass
+    protocol: TCP
+    source_net: Commander
+    destination_net: DMZ_Node
+    destination_port: K8s_Admin_Ports
+    log: false
+  - description: Allow commander to K8S
+    action: pass
+    protocol: TCP
+    source_net: Commander
+    destination_net: 10.25.27.0/24
+    destination_port: K8s_Admin_Ports
+    log: false
+  - description: Block management to DMZ
+    action: block
+    destination_net: 10.25.11.0/24
+    log: true
+  - description: Block management to K8S
+    action: block
+    destination_net: 10.25.27.0/24
+    log: true
   - description: Allow internal networks
     action: pass
     destination_net: RFC1918
@@ -96,3 +155,22 @@ opnsense_management_rules:
     action: pass
     destination_net: any
     log: false
+
+# Build phase: the HTTPS rule is replaced by the hostname allow-list
+# before the isolation tests run.
+opnsense_dmz_rules:
+  - { description: Allow DNS, action: pass, protocol: TCP/UDP, destination_net: Public_DNS, destination_port: 53, log: false }
+  - { description: Allow NTP, action: pass, protocol: UDP, destination_net: Public_NTP, destination_port: 123, log: false }
+  - { description: Allow Cloudflare tunnel, action: pass, protocol: TCP/UDP, destination_net: Cloudflare_Tunnel, destination_port: 7844, log: false }
+  - { description: Block access to the firewall, action: block, destination_net: (self), log: true }
+  - { description: Block access to internal networks, action: block, destination_net: RFC1918, log: true }
+  - { description: Allow HTTPS during build, action: pass, protocol: TCP, destination_net: any, destination_port: 443, log: false }
+  - { description: Block everything else, action: block, destination_net: any, log: true }
+
+opnsense_k8s_rules:
+  - { description: Allow DNS, action: pass, protocol: TCP/UDP, destination_net: Public_DNS, destination_port: 53, log: false }
+  - { description: Allow NTP, action: pass, protocol: UDP, destination_net: Public_NTP, destination_port: 123, log: false }
+  - { description: Block access to the firewall, action: block, destination_net: (self), log: true }
+  - { description: Block access to internal networks, action: block, destination_net: RFC1918, log: true }
+  - { description: Allow HTTPS, action: pass, protocol: TCP, destination_net: any, destination_port: 443, log: false }
+  - { description: Block everything else, action: block, destination_net: any, log: true }

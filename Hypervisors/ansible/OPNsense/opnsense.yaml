@@ -10,6 +10,7 @@
     api_url: "https://{{ opnsense_host }}:{{ opnsense_port }}/api"
     api_key: "{{ lookup('ansible.builtin.ini', 'key', file=opnsense_credential_file | expanduser, type='properties') }}"
     api_secret: "{{ lookup('ansible.builtin.ini', 'secret', file=opnsense_credential_file | expanduser, type='properties') }}"
+    dhcp_vlans: "{{ opnsense_vlans | selectattr('dhcp_start', 'defined') | list }}"
 
   module_defaults:
     group/oxlorg.opnsense.all:
@@ -199,7 +200,7 @@
         interface_name: "{{ vlan.name }}"
         interface_id: "{{ interface_ids[vlan.name] }}"
         rule_base: "{{ 2000 + (vlan_index * 1000) }}"
-        rules: "{{ opnsense_client_rules }}"
+        rules: "{{ vlan.rules | default(opnsense_client_rules) }}"
       loop: "{{ opnsense_vlans }}"
       loop_control:
         loop_var: vlan
@@ -221,7 +222,7 @@
       oxlorg.opnsense.dnsmasq_general:
         enabled: true
         port: 0
-        interfaces: "{{ [opnsense_lan.name] + (opnsense_vlans | map(attribute='name') | list) }}"
+        interfaces: "{{ [opnsense_lan.name] + (dhcp_vlans | map(attribute='name') | list) }}"
         dhcp_default_fw_rules: true
         reload: false
 
@@ -242,7 +243,7 @@
         end_addr: "{{ item.dhcp_end }}"
         domain: "{{ opnsense_domain }}"
         reload: false
-      loop: "{{ opnsense_vlans }}"
+      loop: "{{ dhcp_vlans }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -261,7 +262,7 @@
         interface: "{{ item.name }}"
         value: "{{ opnsense_dns_server }}"
         reload: false
-      loop: "{{ opnsense_vlans }}"
+      loop: "{{ dhcp_vlans }}"
       loop_control:
         label: "{{ item.name }}"
 
