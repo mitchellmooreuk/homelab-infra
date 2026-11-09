@@ -21,7 +21,7 @@
       ipprotocol: inet
       protocol: "{{ item.protocol | default('any') }}"
       icmptype: "{{ item.icmp_type | default([]) | join(',') }}"
-      source_net: "{{ interface_id }}"
+      source_net: "{{ item.source_net | default(interface_id) }}"
       destination_net: "{{ item.destination_net }}"
       destination_port: "{{ item.destination_port | default('') | string }}"
       log: "{{ '1' if item.log else '0' }}"
