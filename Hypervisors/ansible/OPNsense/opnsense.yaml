@@ -50,6 +50,19 @@
       loop: "{{ opnsense_vlans }}"
       loop_control:
         label: "{{ item.name }}"
+      register: vlan_result
+
+    # Saved VLANs don't exist on the running system until they're applied.
+    - name: Apply VLAN devices
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/vlan_settings/reconfigure"
+        method: POST
+        body_format: json
+        body: {}
+      when: vlan_result is changed
+      register: vlan_apply_result
+      changed_when: true
+      failed_when: vlan_apply_result.json.status | default('') != 'ok'
 
     # OPNsense generates the device names, so they have to be looked up.
     - name: Read VLAN devices
@@ -155,6 +168,24 @@
         body: {}
       when: assign_result is changed or address_result is changed or wan_result is changed
       changed_when: true
+
+    # The reconfigure above leaves newly assigned interfaces without an address.
+    - name: Reload new VLAN interfaces
+      ansible.builtin.uri:
+        url: "{{ api_url }}/interfaces/overview/reload_interface/{{ interface_ids[item.name] }}"
+        method: POST
+        body_format: json
+        body: {}
+      loop: "{{ assign_result.results | selectattr('changed') | map(attribute='item') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: interface_reload_result
+      changed_when: true
+
+    - name: Wait for new VLAN interfaces
+      ansible.builtin.pause:
+        seconds: 5
+      when: interface_reload_result is changed
 
     - name: Read interface status
       ansible.builtin.uri:
