@@ -4,7 +4,7 @@
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
-tfplan
+*tfplan
 *.md
 !README.md
 !pull_request_template.md
