@@ -16,7 +16,7 @@ module "download_image" {
 module "virtual_machines" {
   for_each = var.virtual_machines
 
-  source = "git::https://github.com/mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.10.1"
+  source = "git::https://github.com/mitchellmooreuk/terraform-modules.git//proxmox-vm?ref=v1.11.0"
 
   vm_name         = each.key
   vm_id           = each.value.vm_id
@@ -31,6 +31,8 @@ module "virtual_machines" {
   cd_roms         = each.value.cd_roms
   network_devices = each.value.network_devices
   cloud_init      = each.value.cloud_init
+  ssh_public_keys = [local.ssh_public_key]
+  firewall_rules  = each.value.firewall_rules
   on_boot         = each.value.on_boot
   started         = each.value.started
 

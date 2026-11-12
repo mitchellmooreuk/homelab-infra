@@ -8,6 +8,12 @@ variable "pve_endpoint" {
   description = "The endpoint of the PVE to connect to. Expressed as an IP Address."
 }
 
+variable "ssh_public_key_file" {
+  type        = string
+  description = "(Optional) The SSH public key added to each VM."
+  default     = "~/.ssh/id_rsa_terraform.pub"
+}
+
 variable "image_download" {
   type = map(object({
     content_type = string
@@ -59,6 +65,7 @@ variable "virtual_machines" {
       vlan_id      = optional(number)
       mac_address  = optional(string)
       disconnected = optional(bool, false)
+      firewall     = optional(bool, false)
     }))
 
     cloud_init = optional(object({
@@ -66,7 +73,17 @@ variable "virtual_machines" {
       interface    = string
       ipv4_address = optional(string)
       gateway      = optional(string)
+      dns_servers  = optional(list(string))
     }))
+
+    firewall_rules = optional(list(object({
+      comment = string
+      source  = string
+      proto   = string
+      dport   = string
+    })), [])
+
+    ansible_group = optional(string)
   }))
   description = "(Optional) A map of virtual machines to be provisoned"
   default     = {}
