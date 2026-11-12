@@ -9,8 +9,8 @@ The goal for this repository is to put most of my homelab configuration into Ter
 - Create a terraform modules repository to enable remote module storage including versioning of modules [✅]
 - Get all virtual machines into Terraform [✅]
 - Make this deployable via GitHub actions using CI/CD pipelines [✅]
-- Provision scripts to backup configuration for switches, firewalls, access points etc []
-- Provision a VM with a cron job that goes away and grabs those backups every x amount of time, saves them to my NAS and remote storage of some kind []
+- Provision scripts to backup configuration for switches, firewalls, access points etc [✅]
+- Provision a VM with a cron job that goes away and grabs those backups every x amount of time, saves them to my NAS and remote storage of some kind [✅]
 - Get a personal website up and running in Azure with CI/CD pipelines for this []
 
 ## Overview
@@ -19,23 +19,23 @@ This repository provisions a homelab infrastructure using:
 
 - Azure Resource Manager (`azurerm`) for cloud state backend, resource group, management lock, and Key Vault.
 - Proxmox provider (`bpg/proxmox`) for creating and managing VMs on a Proxmox VE host.
-- Remote Terraform modules from `git@github.com:mitchellmooreuk/terraform-modules.git`.
+- Remote Terraform modules from `https://github.com/mitchellmooreuk/terraform-modules`, pinned to release tags.
 
 ## Architecture
 
-- `main.tf` defines providers, Azure resource group, management lock, and a role assignment.
-- `app.tf` instantiates reusable modules
-- `variables.tf` exposes configuration values for Azure, Proxmox, tagging, and VM definitions.
-- `homelab.tfvars` contains the default deployment settings for this homelab.
-- `terraform-plan.sh` fetches secrets from Azure Key Vault and runs `terraform init` + `terraform plan`. Handles IP lifecycle management to both the storage account and key vault.
+- `Azure/` holds the control plane: `main.tf` defines providers, the Azure resource group, management lock and a role assignment, and `app.tf` instantiates the Key Vault module.
+- `Hypervisors/terraform/` holds the Proxmox VMs. `app.tf` instantiates the image download and VM modules, and `variables.tf` defines the image and VM settings.
+- `Hypervisors/terraform/HVA01.tfvars` and `HVA02.tfvars` hold the settings for each Proxmox host. Each host has its own state.
+- Each folder has a `terraform-plan.ps1` that fetches secrets from Azure Key Vault and runs `terraform init` + `terraform plan`. It also adds your current IP to the storage account and Key Vault firewalls.
 
 ## Prerequisites
 
 - Terraform `>= 1.5.0`
-- Azure CLI
+- PowerShell 7 (`pwsh`) and Azure CLI
 - Azure account access and permission to read Key Vault secrets
-- Proxmox VE host access with a username/password
-- SSH / Git access to `git@github.com:mitchellmooreuk/terraform-modules.git`
+- A Proxmox API token for each host, stored in Key Vault
+- The Terraform SSH key at `~/.ssh/id_rsa_terraform`, used by the Proxmox provider and added to new VMs
+- HTTPS access to `https://github.com/mitchellmooreuk/terraform-modules`
 
 ## Usage
 
@@ -45,12 +45,16 @@ This repository provisions a homelab infrastructure using:
 az login
 ```
 
-2. Confirm the Key Vault secrets are available in `terraform-plan.sh`.
+2. Confirm the Key Vault secrets are available to `terraform-plan.ps1`.
 
-3. Run the plan script:
+3. Run the plan script from the folder you're deploying. The parameter values can be found in 1Pass for running this locally.
 
-```bash
-./terraform-plan.sh '<additional command line params can be found in 1Pass for running this locally.>'
+```powershell
+# Hypervisors/terraform, for one host (HVA01 or HVA02)
+./terraform-plan.ps1 -nodeName HVA02 -keyVaultName <name> -resourceGroupName <name> -storageAccountName <name>
+
+# Azure
+./terraform-plan.ps1 -keyVaultName <name> -resourceGroupName <name> -storageAccountName <name>
 ```
 
 4. Apply the generated plan:
@@ -61,17 +65,17 @@ terraform apply tfplan
 
 ## Configuration
 
-- `homelab.tfvars` contains the default `application_name`, `owner`, `environment`, `location`, `pve_endpoint`, and VM definitions.
-- Sensitive values such as `pve_username`, `pve_password`, and `tenant_id` are retrieved from Azure Key Vault by `terraform-plan.sh`.
+- `HVA01.tfvars` and `HVA02.tfvars` contain each host's `pve_endpoint`, image downloads and VM definitions.
+- Sensitive values such as `pve_api_token` and `tenant_id` are retrieved from Azure Key Vault by `terraform-plan.ps1`.
 
 ## Backend and state
 
-This repository uses an Azure Storage backend configured dynamically by `terraform-plan.sh`.
+This repository uses an Azure Storage backend configured dynamically by `terraform-plan.ps1`.
 
-The script reads backend configuration values from Azure Key Vault secrets:
+The scripts read backend configuration values from Azure Key Vault secrets:
 
 - `backend-container-name`
-- `backend-state-key`
+- `backend-state-key-<name>`, where `<name>` is `azure` or the Proxmox host name
 
 ## Notes
 
